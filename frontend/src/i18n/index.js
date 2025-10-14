@@ -68,7 +68,14 @@ const translations = {
       signIn: 'Login',
       continueGuest: 'Continue as Guest',
       prompt: "Don't have an account?",
-      signup: 'Sign Up'
+      signup: 'Sign Up',
+      fullName: 'Full Name',
+      confirmPassword: 'Confirm Password',
+      joinToday: 'Join QuizCraft today',
+      iAmA: 'I am a:',
+      student: 'Student',
+      teacher: 'Teacher',
+      alreadyHaveAccount: 'Already have an account?'
     },
     quiz: {
       start: 'Start Quiz',
@@ -183,7 +190,14 @@ const translations = {
       signIn: 'লগইন',
       continueGuest: 'গেস্ট হিসেবে চালিয়ে যান',
       prompt: 'অ্যাকাউন্ট নেই? ',
-      signup: 'সাইন আপ'
+      signup: 'সাইন আপ',
+      fullName: 'পূর্ণ নাম',
+      confirmPassword: 'পাসওয়ার্ড নিশ্চিত করুন',
+      joinToday: 'আজই কুইজক্রাফ্টে যোগ দিন',
+      iAmA: 'আমি একজন:',
+      student: 'ছাত্র/ছাত্রী',
+      teacher: 'শিক্ষক',
+      alreadyHaveAccount: 'ইতিমধ্যে অ্যাকাউন্ট আছে?'
     },
     quiz: {
       start: 'কুইজ শুরু করুন',

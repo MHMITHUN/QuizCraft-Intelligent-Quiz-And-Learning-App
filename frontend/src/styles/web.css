@@ -81,11 +81,44 @@ div[class*="scrollView"] {
   height: 100% !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch;
+  max-height: calc(100vh - 120px) !important;
 }
 
 div[class*="scrollContent"] {
   min-height: min-content !important;
   padding-bottom: 40px !important;
+}
+
+/* Force scrolling for desktop quiz screens */
+@media (min-width: 768px) {
+  /* Main quiz container */
+  div[class*="container"] div[class*="content"] {
+    height: calc(100vh - 140px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+  
+  /* Quiz take screen specific */
+  div[aria-label*="TakeQuiz"] {
+    height: 100vh !important;
+    overflow: hidden !important;
+  }
+  
+  div[aria-label*="TakeQuiz"] > div {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  /* Scrollable content area */
+  div[aria-label*="TakeQuiz"] div[class*="scrollView"],
+  div[aria-label*="TakeQuiz"] div[data-testid="scroll-view"] {
+    flex: 1 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
 }
 
 /* Button improvements for web */

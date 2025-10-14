@@ -1,8 +1,35 @@
 # QuizCraft Web-Only Launcher
 # ============================
 
+# Function to setup Node.js PATH
+function Set-NodePath {
+    $commonNodePaths = @(
+        "C:\nodejs",
+        "C:\Program Files\nodejs",
+        "$env:USERPROFILE\AppData\Roaming\npm",
+        "$env:ProgramFiles\nodejs",
+        "${env:ProgramFiles(x86)}\nodejs"
+    )
+    $env:Path = ($commonNodePaths -join ";") + ";" + $env:Path
+}
+
+# Function to create PATH string for new processes
+function Get-NodePathString {
+    $commonNodePaths = @(
+        "C:\nodejs",
+        "C:\Program Files\nodejs",
+        "$env:USERPROFILE\AppData\Roaming\npm",
+        "$env:ProgramFiles\nodejs",
+        "${env:ProgramFiles(x86)}\nodejs"
+    )
+    return ($commonNodePaths -join ";") + ";" + $env:Path
+}
+
 Write-Host "🌐 Starting QuizCraft Web Version..." -ForegroundColor Cyan
 Write-Host ""
+
+# Setup PATH for current session
+Set-NodePath
 
 # Check if backend is running
 $backendRunning = $false
@@ -18,7 +45,8 @@ try {
 
 if (-not $backendRunning) {
     Write-Host "🔧 Starting backend server..." -ForegroundColor Cyan
-    Start-Process powershell -ArgumentList "-Command", "cd 'M:\Program all\QuizCraft New\backend'; npm start; Read-Host 'Press Enter to close'"
+    $pathString = Get-NodePathString
+    Start-Process powershell -ArgumentList "-Command", "& {`$env:Path='$pathString'; cd 'M:\Program all\QuizCraft New\backend'; npm run dev; Read-Host 'Press Enter to close'}"
     Write-Host "⏳ Waiting for backend to start..." -ForegroundColor Yellow
     Start-Sleep -Seconds 5
 }
@@ -31,7 +59,7 @@ Write-Host "   💻 Optimized for desktop/laptop screens!" -ForegroundColor Gree
 Write-Host ""
 
 cd "M:\Program all\QuizCraft New\frontend"
-npx expo start --web
+npm run web
 
 Write-Host ""
 Write-Host "🎉 QuizCraft Web is now running!" -ForegroundColor Green

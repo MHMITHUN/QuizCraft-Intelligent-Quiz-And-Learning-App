@@ -200,10 +200,13 @@ export default function TakeQuizScreen({ route, navigation }) {
         ]}
       >
         <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          style={[styles.scrollView, Platform.OS === 'web' && { maxHeight: 'calc(100vh - 140px)', overflowY: 'auto' }]}
+          contentContainerStyle={[styles.scrollContent, Platform.OS === 'web' && { minHeight: 'fit-content' }]}
           showsVerticalScrollIndicator={true}
-          bounces={true}
+          bounces={Platform.OS !== 'web'}
+          scrollEventThrottle={16}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled={Platform.OS === 'android'}
         >
           {quiz?.questions?.map((question, index) => renderQuestion(question, index))}
           
@@ -293,10 +296,19 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    ...(Platform.OS === 'web' && {
+      height: 'auto',
+      maxHeight: 'calc(100vh - 140px)',
+      overflowY: 'auto'
+    })
   },
   scrollContent: {
     paddingHorizontal: 20,
     paddingVertical: 20,
+    ...(Platform.OS === 'web' && {
+      minHeight: 'fit-content',
+      paddingBottom: 40
+    })
   },
   questionCard: {
     backgroundColor: 'white',

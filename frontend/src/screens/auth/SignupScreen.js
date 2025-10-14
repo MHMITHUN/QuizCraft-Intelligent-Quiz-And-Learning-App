@@ -16,7 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useI18n } from '../../i18n';
 
 export default function SignupScreen({ navigation }) {
-  const { t, setLang } = useI18n();
+  const { t, setLang, lang } = useI18n();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -74,10 +74,20 @@ export default function SignupScreen({ navigation }) {
           <View style={styles.header}>
             <Text style={styles.emoji}>🚀</Text>
             <Text style={styles.title}>{t('login:signup')}</Text>
-            <Text style={styles.subtitle}>Join QuizCraft today</Text>
-            <View style={{ flexDirection:'row', marginTop: 8 }}>
-              <TouchableOpacity onPress={() => setLang('en')} style={{ borderWidth:1, borderColor:'#FFF', paddingHorizontal:10, paddingVertical:4, borderTopLeftRadius:6, borderBottomLeftRadius:6 }}><Text style={{ color:'#FFF', fontWeight:'700' }}>EN</Text></TouchableOpacity>
-              <TouchableOpacity onPress={() => setLang('bn')} style={{ borderWidth:1, borderColor:'#FFF', paddingHorizontal:10, paddingVertical:4, borderTopRightRadius:6, borderBottomRightRadius:6 }}><Text style={{ color:'#FFF', fontWeight:'700' }}>বাংলা</Text></TouchableOpacity>
+            <Text style={styles.subtitle}>{t('login:joinToday') || 'Join QuizCraft today'}</Text>
+            <View style={styles.langRow}>
+              <TouchableOpacity 
+                onPress={() => setLang('en')} 
+                style={[styles.langBtn, styles.langLeft, lang === 'en' && styles.langBtnActive]}
+              >
+                <Text style={[styles.langBtnText, lang === 'en' && styles.langBtnTextActive]}>EN</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => setLang('bn')} 
+                style={[styles.langBtn, styles.langRight, lang === 'bn' && styles.langBtnActive]}
+              >
+                <Text style={[styles.langBtnText, lang === 'bn' && styles.langBtnTextActive]}>বাংলা</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -88,7 +98,7 @@ export default function SignupScreen({ navigation }) {
               <Text style={styles.inputIcon}>👤</Text>
               <TextInput
                 style={styles.input}
-                placeholder={t('login:email') && 'Full Name'}
+                placeholder={t('login:fullName') || 'Full Name'}
                 placeholderTextColor="#9CA3AF"
                 value={name}
                 onChangeText={setName}
@@ -136,7 +146,7 @@ export default function SignupScreen({ navigation }) {
               <Text style={styles.inputIcon}>🔐</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Confirm Password"
+                placeholder={t('login:confirmPassword') || 'Confirm Password'}
                 placeholderTextColor="#9CA3AF"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
@@ -153,7 +163,7 @@ export default function SignupScreen({ navigation }) {
 
             {/* Role Selection */}
             <View style={styles.roleContainer}>
-              <Text style={styles.roleLabel}>I am a:</Text>
+              <Text style={styles.roleLabel}>{t('login:iAmA') || 'I am a:'}</Text>
               <View style={styles.roleButtons}>
                 <TouchableOpacity
                   style={[
@@ -169,7 +179,7 @@ export default function SignupScreen({ navigation }) {
                       role === 'student' && styles.roleTextActive,
                     ]}
                   >
-                    🎓 Student
+                    🎓 {t('login:student') || 'Student'}
                   </Text>
                 </TouchableOpacity>
 
@@ -187,7 +197,7 @@ export default function SignupScreen({ navigation }) {
                       role === 'teacher' && styles.roleTextActive,
                     ]}
                   >
-                    👨‍🏫 Teacher
+                    👨‍🏫 {t('login:teacher') || 'Teacher'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -217,7 +227,7 @@ export default function SignupScreen({ navigation }) {
 
             {/* Login Link */}
             <View style={styles.footer}>
-              <Text style={styles.footerText}>Already have an account? </Text>
+              <Text style={styles.footerText}>{t('login:alreadyHaveAccount') || 'Already have an account?'} </Text>
               <TouchableOpacity onPress={() => navigation.navigate('Login')}>
                 <Text style={styles.link}>{t('login:signIn')}</Text>
               </TouchableOpacity>
@@ -268,6 +278,13 @@ const styles = StyleSheet.create({
     color: '#FFF',
     opacity: 0.9,
   },
+  langRow: { flexDirection: 'row', marginTop: 8 },
+  langBtn: { borderWidth: 1, borderColor: '#FFF', paddingHorizontal: 10, paddingVertical: 4 },
+  langBtnActive: { backgroundColor: '#FFF' },
+  langLeft: { borderTopLeftRadius: 6, borderBottomLeftRadius: 6 },
+  langRight: { borderTopRightRadius: 6, borderBottomRightRadius: 6 },
+  langBtnText: { color: '#FFF', fontWeight: '700' },
+  langBtnTextActive: { color: '#667eea' },
   card: {
     backgroundColor: '#FFF',
     borderRadius: 24,

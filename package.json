@@ -1,0 +1,14 @@
+{
+  "name": "quizcraft-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "cd frontend && node_modules\\.bin\\expo.cmd start",
+    "web": "cd frontend && node_modules\\.bin\\expo.cmd start --web",
+    "android": "cd frontend && node_modules\\.bin\\expo.cmd start --android",
+    "ios": "cd frontend && node_modules\\.bin\\expo.cmd start --ios",
+    "backend": "cd backend && npm run dev",
+    "install-all": "cd frontend && npm install && cd ../backend && npm install"
+  },
+  "description": "QuizCraft AI-Powered Quiz Platform - Root Scripts"
+}

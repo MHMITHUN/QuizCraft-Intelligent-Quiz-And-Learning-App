@@ -16,7 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useI18n } from '../../i18n';
 
 export default function LoginScreen({ navigation }) {
-  const { t, setLang } = useI18n();
+  const { t, setLang, lang } = useI18n();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -62,8 +62,18 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.logo}>📚 QuizCraft</Text>
           <Text style={styles.tagline}>{t('upload:aiPowered')}</Text>
           <View style={styles.langRow}>
-            <TouchableOpacity onPress={() => (typeof setLang==='function'?setLang('en'):null)} style={[styles.langBtn, styles.langLeft]}><Text style={styles.langBtnText}>EN</Text></TouchableOpacity>
-            <TouchableOpacity onPress={() => (typeof setLang==='function'?setLang('bn'):null)} style={[styles.langBtn, styles.langRight]}><Text style={styles.langBtnText}>বাংলা</Text></TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => setLang('en')} 
+              style={[styles.langBtn, styles.langLeft, lang === 'en' && styles.langBtnActive]}
+            >
+              <Text style={[styles.langBtnText, lang === 'en' && styles.langBtnTextActive]}>EN</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => setLang('bn')} 
+              style={[styles.langBtn, styles.langRight, lang === 'bn' && styles.langBtnActive]}
+            >
+              <Text style={[styles.langBtnText, lang === 'bn' && styles.langBtnTextActive]}>বাংলা</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -123,6 +133,14 @@ export default function LoginScreen({ navigation }) {
               <Text style={styles.guestButtonText}>{t('login:continueGuest')}</Text>
             )}
           </TouchableOpacity>
+          
+          {/* Forgot Password */}
+          <TouchableOpacity 
+            style={styles.forgotPassword}
+            onPress={() => navigation.navigate('ForgotPassword')}
+          >
+            <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
+          </TouchableOpacity>
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>{t('login:prompt')}</Text>
@@ -166,9 +184,11 @@ const styles = StyleSheet.create({
   },
   langRow: { flexDirection: 'row', marginTop: 8 },
   langBtn: { borderWidth: 1, borderColor: '#4F46E5', paddingHorizontal: 10, paddingVertical: 4 },
+  langBtnActive: { backgroundColor: '#4F46E5' },
   langLeft: { borderTopLeftRadius: 6, borderBottomLeftRadius: 6 },
   langRight: { borderTopRightRadius: 6, borderBottomRightRadius: 6 },
   langBtnText: { color: '#4F46E5', fontWeight: '700' },
+  langBtnTextActive: { color: '#FFF' },
   form: {
     backgroundColor: '#FFF',
     borderRadius: 12,
@@ -248,6 +268,17 @@ const styles = StyleSheet.create({
     color: '#4F46E5',
     fontSize: 16,
     fontWeight: '600',
+  },
+  forgotPassword: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  forgotPasswordText: {
+    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
   footer: {
     flexDirection: 'row',

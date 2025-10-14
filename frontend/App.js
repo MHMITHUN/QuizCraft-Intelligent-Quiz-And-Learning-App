@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { I18nProvider } from './src/i18n';
 import { Ionicons } from '@expo/vector-icons';
 import WebResponsiveWrapper from './src/components/WebResponsiveWrapper';
+import { ToastComponent } from './src/components/Toast';
 
 // Import web styles for better responsive design (web only)
 if (Platform.OS === 'web') {
@@ -22,6 +23,7 @@ if (Platform.OS === 'web') {
 import LoginScreen from './src/screens/auth/LoginScreen';
 import SignupScreen from './src/screens/auth/SignupScreen';
 import WelcomeScreen from './src/screens/auth/WelcomeScreen';
+import ForgotPasswordScreen from './src/screens/auth/ForgotPasswordScreen';
 
 // Main Screens
 import HomeScreen from './src/screens/main/HomeScreen';
@@ -98,9 +100,21 @@ function AuthStack() {
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Signup" component={SignupScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
     </Stack.Navigator>
   );
 }
+
+// Role-based Screen Wrapper
+const RoleProtectedScreen = ({ component: Component, allowedRoles, ...props }) => {
+  const RoleGuard = require('./src/components/RoleGuard').default;
+  
+  return (screenProps) => (
+    <RoleGuard allowedRoles={allowedRoles} navigation={screenProps.navigation} showUpgrade>
+      <Component {...screenProps} {...props} />
+    </RoleGuard>
+  );
+};
 
 // Main App Stack
 function AppStack() {
@@ -108,6 +122,7 @@ function AppStack() {
 
   return (
     <Stack.Navigator>
+      {/* Public screens available to all users */}
       <Stack.Screen 
         name="MainTabs" 
         component={MainTabs} 
@@ -129,6 +144,13 @@ function AppStack() {
         options={{ title: 'Results', headerLeft: null }}
       />
       <Stack.Screen 
+        name="Leaderboard" 
+        component={LeaderboardScreen}
+        options={{ title: 'Leaderboard' }}
+      />
+      
+      {/* Authenticated user screens */}
+      <Stack.Screen 
         name="MyQuizzes" 
         component={MyQuizzesScreen}
         options={{ title: 'My Quizzes' }}
@@ -137,6 +159,11 @@ function AppStack() {
         name="History" 
         component={HistoryScreen}
         options={{ title: 'Quiz History' }}
+      />
+      <Stack.Screen 
+        name="Stats" 
+        component={StatsScreen}
+        options={{ title: 'My Statistics' }}
       />
       <Stack.Screen 
         name="Subscription" 
@@ -148,57 +175,76 @@ function AppStack() {
         component={require('./src/screens/billing/MyPaymentsScreen').default}
         options={{ title: 'My Payments' }}
       />
-      <Stack.Screen 
-        name="ClassDetail" 
-        component={require('./src/screens/teacher/ClassDetailScreen').default}
-        options={{ title: 'Class Details' }}
-      />
+      
+      {/* Student-specific screens */}
       <Stack.Screen 
         name="JoinClass" 
-        component={require('./src/screens/teacher/JoinClassScreen').default}
+        component={RoleProtectedScreen({
+          component: require('./src/screens/teacher/JoinClassScreen').default,
+          allowedRoles: ['student']
+        })}
         options={{ title: 'Join Class' }}
       />
+      
+      {/* Teacher-specific screens */}
       <Stack.Screen 
-        name="Leaderboard" 
-        component={LeaderboardScreen}
-        options={{ title: 'Leaderboard' }}
+        name="TeacherDashboard" 
+        component={RoleProtectedScreen({
+          component: require('./src/screens/teacher/TeacherDashboardScreen').default,
+          allowedRoles: ['teacher', 'admin']
+        })}
+        options={{ title: 'Teacher Dashboard' }}
       />
       <Stack.Screen 
-        name="Stats" 
-        component={StatsScreen}
-        options={{ title: 'My Statistics' }}
+        name="ClassDetail" 
+        component={RoleProtectedScreen({
+          component: require('./src/screens/teacher/ClassDetailScreen').default,
+          allowedRoles: ['teacher', 'admin']
+        })}
+        options={{ title: 'Class Details' }}
       />
-      {user?.role === 'admin' && (
-        <>
-        <Stack.Screen 
-          name="AdminDashboard" 
-          component={AdminDashboardScreen}
-          options={{ title: 'Admin Dashboard' }}
-        />
-        <Stack.Screen 
-          name="AdminUsers" 
-          component={require('./src/screens/admin/AdminUsersScreen').default}
-          options={{ title: 'Admin Users' }}
-        />
-        <Stack.Screen 
-          name="AdminQuizzes" 
-          component={require('./src/screens/admin/AdminQuizzesScreen').default}
-          options={{ title: 'Admin Quizzes' }}
-        />
-        <Stack.Screen 
-          name="AdminPayments" 
-          component={require('./src/screens/admin/AdminPaymentsScreen').default}
-          options={{ title: 'Admin Payments' }}
-        />
-        </>
-      )}
-      {user?.role === 'teacher' && (
-        <Stack.Screen 
-          name="TeacherDashboard" 
-          component={require('./src/screens/teacher/TeacherDashboardScreen').default}
-          options={{ title: 'Teacher Dashboard' }}
-        />
-      )}
+      
+      {/* Admin-specific screens */}
+      <Stack.Screen 
+        name="AdminDashboard" 
+        component={RoleProtectedScreen({
+          component: AdminDashboardScreen,
+          allowedRoles: ['admin']
+        })}
+        options={{ title: 'Admin Dashboard' }}
+      />
+      <Stack.Screen 
+        name="AdminUsers" 
+        component={RoleProtectedScreen({
+          component: require('./src/screens/admin/AdminUsersScreen').default,
+          allowedRoles: ['admin']
+        })}
+        options={{ title: 'User Management' }}
+      />
+      <Stack.Screen 
+        name="AdminQuizzes" 
+        component={RoleProtectedScreen({
+          component: require('./src/screens/admin/AdminQuizzesScreen').default,
+          allowedRoles: ['admin']
+        })}
+        options={{ title: 'Quiz Management' }}
+      />
+      <Stack.Screen 
+        name="AdminPayments" 
+        component={RoleProtectedScreen({
+          component: require('./src/screens/admin/AdminPaymentsScreen').default,
+          allowedRoles: ['admin']
+        })}
+        options={{ title: 'Payment Management' }}
+      />
+      <Stack.Screen 
+        name="AdminSettings" 
+        component={RoleProtectedScreen({
+          component: require('./src/screens/admin/AdminSettingsScreen').default,
+          allowedRoles: ['admin']
+        })}
+        options={{ title: 'System Settings' }}
+      />
     </Stack.Navigator>
   );
 }
@@ -235,6 +281,7 @@ export default function App() {
               width: isWeb ? '100vw' : 'auto'
             }}>
               <RootNavigator />
+              <ToastComponent />
             </View>
           </NavigationContainer>
         </AuthProvider>

@@ -1,8 +1,35 @@
 # QuizCraft Mobile Development Launcher
 # ====================================
 
+# Function to setup Node.js PATH
+function Set-NodePath {
+    $commonNodePaths = @(
+        "C:\nodejs",
+        "C:\Program Files\nodejs",
+        "$env:USERPROFILE\AppData\Roaming\npm",
+        "$env:ProgramFiles\nodejs",
+        "${env:ProgramFiles(x86)}\nodejs"
+    )
+    $env:Path = ($commonNodePaths -join ";") + ";" + $env:Path
+}
+
+# Function to create PATH string for new processes
+function Get-NodePathString {
+    $commonNodePaths = @(
+        "C:\nodejs",
+        "C:\Program Files\nodejs",
+        "$env:USERPROFILE\AppData\Roaming\npm",
+        "$env:ProgramFiles\nodejs",
+        "${env:ProgramFiles(x86)}\nodejs"
+    )
+    return ($commonNodePaths -join ";") + ";" + $env:Path
+}
+
 Write-Host "📱 Starting QuizCraft for Mobile Development..." -ForegroundColor Cyan
 Write-Host ""
+
+# Setup PATH for current session
+Set-NodePath
 
 # Check if backend is running
 $backendRunning = $false
@@ -18,7 +45,8 @@ try {
 
 if (-not $backendRunning) {
     Write-Host "🔧 Starting backend server..." -ForegroundColor Cyan
-    Start-Process powershell -ArgumentList "-Command", "cd 'M:\Program all\QuizCraft New\backend'; npm start; Read-Host 'Press Enter to close'"
+    $pathString = Get-NodePathString
+    Start-Process powershell -ArgumentList "-Command", "& {`$env:Path='$pathString'; cd 'M:\Program all\QuizCraft New\backend'; npm run dev; Read-Host 'Press Enter to close'}"
     Write-Host "⏳ Waiting for backend to start..." -ForegroundColor Yellow
     Start-Sleep -Seconds 5
 }
@@ -40,19 +68,19 @@ switch ($choice) {
         Write-Host "📱 Starting Expo Go development server..." -ForegroundColor Green
         Write-Host "   📲 Scan the QR code with Expo Go app on your phone!" -ForegroundColor Cyan
         Write-Host "   📶 Make sure your phone and PC are on the same WiFi network!" -ForegroundColor Yellow
-        npx expo start --tunnel
+        npm run start -- --tunnel
     }
     "2" { 
         Write-Host "🤖 Starting Android emulator..." -ForegroundColor Green
-        npx expo start --android
+        npm run android
     }
     "3" { 
         Write-Host "🍎 Starting iOS simulator..." -ForegroundColor Green
-        npx expo start --ios
+        npm run ios
     }
     default { 
         Write-Host "📱 Starting Expo Go development server (default)..." -ForegroundColor Green
-        npx expo start
+        npm run start
     }
 }
 

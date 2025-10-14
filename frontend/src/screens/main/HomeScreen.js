@@ -18,7 +18,7 @@ const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }) {
   const [quizzes, setQuizzes] = useState([]);
-  const { t, setLang } = useI18n();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
@@ -153,10 +153,6 @@ export default function HomeScreen({ navigation }) {
           <View>
             <Text style={styles.greeting}>{t('home:hello')} {user?.name || 'Guest'}! 👋</Text>
             <Text style={styles.headerSubtitle}>{t('home:ready')}</Text>
-            <View style={{ flexDirection:'row', marginTop: 8 }}>
-              <TouchableOpacity onPress={()=>setLang('en')} style={{ borderWidth:1, borderColor:'#FFF', paddingHorizontal:10, paddingVertical:4, borderTopLeftRadius:6, borderBottomLeftRadius:6 }}><Text style={{ color:'#FFF', fontWeight:'700' }}>EN</Text></TouchableOpacity>
-              <TouchableOpacity onPress={()=>setLang('bn')} style={{ borderWidth:1, borderColor:'#FFF', paddingHorizontal:10, paddingVertical:4, borderTopRightRadius:6, borderBottomRightRadius:6 }}><Text style={{ color:'#FFF', fontWeight:'700' }}>বাংলা</Text></TouchableOpacity>
-            </View>
           </View>
           {user && (
             <View style={styles.pointsBadge}>

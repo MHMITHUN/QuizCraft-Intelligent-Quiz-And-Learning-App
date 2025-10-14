@@ -27,32 +27,33 @@ Built with **React Native**, **Node.js**, and **MongoDB Atlas Vector Search**, i
 
 ## 🚀 Features
 
-| 🧩 Core Capability | ⚙️ Description |
-|--------------------|----------------|
-| **🪄 AI Quiz Generation** | Gemini 1.5 (Pro/Flash) creates MCQs, True/False, and short answers — all with explanations. |
-| **📄 Smart Content Ingestion** | Extracts text from PDFs and images using `pdf-parse` + `Tesseract.js` OCR. |
-| **🔍 Semantic Vector Search** | Stores question embeddings in **MongoDB Atlas Vector Search (cosine)** for instant retrieval. |
-| **👥 Role-Based Access (RBAC)** | Guest, Student, Teacher, Admin — all secured via JWT authentication. |
-| **📈 Analytics Dashboard** | Track quiz attempts, performance, and personalized recommendations. |
-| **🧰 Admin Console** | Manage users, content, categories, quotas, and system-wide settings. |
-| **💎 Freemium Model** | Usage tiers with configurable limits and scalable quotas. |
+| 🧩 Core Capability              | ⚙️ Description                                                                                |
+| ------------------------------- | --------------------------------------------------------------------------------------------- |
+| **🪄 AI Quiz Generation**       | Gemini 1.5 (Pro/Flash) creates MCQs, True/False, and short answers — all with explanations.   |
+| **📄 Smart Content Ingestion**  | Extracts text from PDFs and images using `pdf-parse` + `Tesseract.js` OCR.                    |
+| **🔍 Semantic Vector Search**   | Stores question embeddings in **MongoDB Atlas Vector Search (cosine)** for instant retrieval. |
+| **👥 Role-Based Access (RBAC)** | Guest, Student, Teacher, Admin — all secured via JWT authentication.                          |
+| **📈 Analytics Dashboard**      | Track quiz attempts, performance, and personalized recommendations.                           |
+| **🧰 Admin Console**            | Manage users, content, categories, quotas, and system-wide settings.                          |
+| **💎 Freemium Model**           | Usage tiers with configurable limits and scalable quotas.                                     |
 
 ---
 
 ## 🧩 Tech Stack
 
-| Layer | Technology |
-|-------|-------------|
-| **Frontend** | React Native (Expo), React Navigation, Axios, RN Charts |
-| **Backend** | Node.js (Express), JWT + bcrypt, Multer (File Uploads) |
-| **Database** | MongoDB Atlas + Vector Search |
-| **AI Engine** | Google Gemini 1.5 Pro / Flash, `gemini-embedding-001` |
+| Layer         | Technology                                              |
+| ------------- | ------------------------------------------------------- |
+| **Frontend**  | React Native (Expo), React Navigation, Axios, RN Charts |
+| **Backend**   | Node.js (Express), JWT + bcrypt, Multer (File Uploads)  |
+| **Database**  | MongoDB Atlas + Vector Search                           |
+| **AI Engine** | Google Gemini 1.5 Pro / Flash, `gemini-embedding-001`   |
 
 ---
 
 ## ⚡ Quick Start
 
 ### 🧱 Prerequisites
+
 - Node.js **v18+**
 - MongoDB Atlas account
 - Google Gemini API key
@@ -113,13 +114,11 @@ ADMIN_PASSWORD=ChangeThisPassword!
 | **Analytics** | `GET /api/analytics/my-stats`        | Personal analytics           |
 | **Admin**     | `GET /api/admin/users`               | Manage users and roles       |
 
-
 <h2 align="center">🧑‍💻 Authors & Credits</h2>
 <p align="center">
-Built with ❤️ by <a href="https://github.com/sumyasoma">@sumyasoma</a> and <a href="https://github.com/MHMITHUN">@MHMITHUN</a><br>
+Built with ❤️ by <a href="https://github.com/sumyasoma">Sumya Soma</a> and <a href="https://github.com/MHMITHUN">Mahamudul Hasan</a><br>
 Powered by <b>Google Gemini</b>, <b>MongoDB Atlas</b>, and <b>React Native</b>
 </p>
-
 
 📜 License
 
