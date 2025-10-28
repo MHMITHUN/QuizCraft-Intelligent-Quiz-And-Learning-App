@@ -24,7 +24,8 @@ export default function SignupScreen({ navigation }) {
   const [role, setRole] = useState('student');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { register, loading } = useAuth();
+  const [localLoading, setLocalLoading] = useState(false);
+  const { register } = useAuth();
 
   const handleSignup = async () => {
     // Coerce and sanitize inputs to avoid undefined access
@@ -49,13 +50,31 @@ export default function SignupScreen({ navigation }) {
       return;
     }
 
+    setLocalLoading(true);
     try {
+      console.log('[Signup] Starting registration...');
       const result = await register(safeName, safeEmail, safePassword, safeRole);
+      console.log('[Signup] Registration result:', JSON.stringify(result));
+      
       if (!result.success) {
+        console.error('[Signup] Registration failed:', result.error);
+        setLocalLoading(false);
         Alert.alert('Signup Failed', result.error ?? 'Unknown error');
+        return;
       }
+      
+      // Registration successful, navigate to OTP screen immediately
+      console.log('[Signup] Success! Navigating to VerifyEmail...');
+      setLocalLoading(false);
+      
+      // Use setTimeout to ensure navigation happens after state update
+      setTimeout(() => {
+        navigation.replace('VerifyEmail', { email: safeEmail });
+      }, 50);
     } catch (e) {
-      Alert.alert('Signup Failed', e?.message ?? 'Unknown error');
+      console.error('[Signup] Unexpected error:', e);
+      setLocalLoading(false);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
     }
   };
 
@@ -102,7 +121,7 @@ export default function SignupScreen({ navigation }) {
                 placeholderTextColor="#9CA3AF"
                 value={name}
                 onChangeText={setName}
-                editable={!loading}
+                editable={!localLoading}
               />
             </View>
 
@@ -117,7 +136,7 @@ export default function SignupScreen({ navigation }) {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                editable={!loading}
+                editable={!localLoading}
               />
             </View>
 
@@ -131,7 +150,7 @@ export default function SignupScreen({ navigation }) {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
-                editable={!loading}
+                editable={!localLoading}
               />
               <TouchableOpacity 
                 onPress={() => setShowPassword(!showPassword)}
@@ -151,7 +170,7 @@ export default function SignupScreen({ navigation }) {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showConfirmPassword}
-                editable={!loading}
+                editable={!localLoading}
               />
               <TouchableOpacity 
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -171,7 +190,7 @@ export default function SignupScreen({ navigation }) {
                     role === 'student' && styles.roleButtonActive,
                   ]}
                   onPress={() => setRole('student')}
-                  disabled={loading}
+                  disabled={localLoading}
                 >
                   <Text
                     style={[
@@ -189,7 +208,7 @@ export default function SignupScreen({ navigation }) {
                     role === 'teacher' && styles.roleButtonActive,
                   ]}
                   onPress={() => setRole('teacher')}
-                  disabled={loading}
+                  disabled={localLoading}
                 >
                   <Text
                     style={[
@@ -205,19 +224,19 @@ export default function SignupScreen({ navigation }) {
 
             {/* Signup Button */}
             <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
+              style={[styles.button, localLoading && styles.buttonDisabled]}
               onPress={handleSignup}
-              disabled={loading}
+              disabled={localLoading}
             >
               <LinearGradient
                 colors={
-                  loading ? ['#9CA3AF', '#6B7280'] : ['#667eea', '#764ba2']
+                  localLoading ? ['#9CA3AF', '#6B7280'] : ['#667eea', '#764ba2']
                 }
                 style={styles.buttonGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                {loading ? (
+                {localLoading ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
                   <Text style={styles.buttonText}>{t('login:signup')}</Text>

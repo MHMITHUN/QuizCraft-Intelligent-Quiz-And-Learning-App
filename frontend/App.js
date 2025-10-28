@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
-import { Platform, View } from 'react-native';
+import { Platform, View, Text, ActivityIndicator } from 'react-native';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { I18nProvider } from './src/i18n';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +24,7 @@ import LoginScreen from './src/screens/auth/LoginScreen';
 import SignupScreen from './src/screens/auth/SignupScreen';
 import WelcomeScreen from './src/screens/auth/WelcomeScreen';
 import ForgotPasswordScreen from './src/screens/auth/ForgotPasswordScreen';
+import VerifyEmailScreen from './src/screens/auth/VerifyEmailScreen';
 
 // Main Screens
 import HomeScreen from './src/screens/main/HomeScreen';
@@ -100,6 +101,7 @@ function AuthStack() {
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Signup" component={SignupScreen} />
+      <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
     </Stack.Navigator>
   );
@@ -254,7 +256,13 @@ function RootNavigator() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return null; // Or loading screen
+    // Show a proper loading screen instead of null
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
+        <ActivityIndicator size="large" color="#4F46E5" />
+        <Text style={{ marginTop: 20, fontSize: 16, color: '#6B7280' }}>Loading QuizCraft...</Text>
+      </View>
+    );
   }
 
   return user ? <AppStack /> : <AuthStack />;

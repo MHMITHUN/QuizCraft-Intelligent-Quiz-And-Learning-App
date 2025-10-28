@@ -26,6 +26,17 @@ const classSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Quiz'
   }],
+  posts: [{
+    author: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    message: String,
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   subject: String,
   grade: String,
   institution: String,
@@ -60,11 +71,19 @@ const classSchema = new mongoose.Schema({
 });
 
 // Generate unique class code before saving
-classSchema.pre('save', function(next) {
+classSchema.pre('save', async function(next) {
   if (!this.code) {
-    this.code = generateClassCode();
+    try {
+      this.code = await generateUniqueClassCode(this.constructor);
+      next();
+    } catch (err) {
+      next(err);
+    }
+  } else {
+    // Ensure code is uppercase
+    this.code = this.code.toUpperCase();
+    next();
   }
-  next();
 });
 
 function generateClassCode() {
@@ -74,6 +93,17 @@ function generateClassCode() {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return code;
+}
+
+async function generateUniqueClassCode(ClassModel, maxAttempts = 10) {
+  for (let i = 0; i < maxAttempts; i++) {
+    const code = generateClassCode();
+    const existing = await ClassModel.findOne({ code });
+    if (!existing) {
+      return code;
+    }
+  }
+  throw new Error('Unable to generate unique class code after ' + maxAttempts + ' attempts');
 }
 
 // Indexes

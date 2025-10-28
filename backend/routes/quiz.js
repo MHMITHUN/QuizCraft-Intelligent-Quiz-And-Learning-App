@@ -67,7 +67,7 @@ router.post('/upload-and-generate', protect, upload.single('file'), async (req, 
 
     const quizData = quizResult.data;
 
-// Create quiz in database
+    // Create quiz in database
     const quiz = await Quiz.create({
       title: quizData.title || 'Generated Quiz',
       description: quizData.description || '',
@@ -147,6 +147,148 @@ router.post('/upload-and-generate', protect, upload.single('file'), async (req, 
 });
 
 /**
+ * @route   POST /api/quiz/stream-upload-and-generate
+ * @desc    Upload file and stream quiz generation (SSE)
+ * @access  Private
+ */
+router.post('/stream-upload-and-generate', protect, upload.single('file'), async (req, res) => {
+  try {
+    const { numQuestions, quizType, difficulty, language, category } = req.body;
+
+    if (!req.user.canGenerateQuiz()) {
+      res.status(403);
+      res.setHeader('Content-Type', 'application/json');
+      return res.end(JSON.stringify({
+        success: false,
+        message: 'Quiz generation limit reached. Please upgrade your plan.',
+        currentUsage: req.user.usage.quizzesGenerated
+      }));
+    }
+
+    if (!req.file) {
+      res.status(400);
+      res.setHeader('Content-Type', 'application/json');
+      return res.end(JSON.stringify({ success: false, message: 'No file uploaded' }));
+    }
+
+    // SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    const send = (obj) => {
+      res.write(`data: ${JSON.stringify(obj)}\n\n`);
+    };
+
+    const hb = setInterval(() => res.write(': ping\n\n'), 15000);
+
+    send({ event: 'ready' });
+
+    // Extract text
+    send({ event: 'extracting' });
+    const extractedText = await textExtractor.extractText(req.file.path, req.file.mimetype);
+    const cleanedText = textExtractor.cleanText(extractedText);
+    textExtractor.validateText(cleanedText, 100);
+    send({ event: 'extracted', length: cleanedText.length });
+
+    const collected = { meta: null, questions: [] };
+
+    // Stream quiz generation
+    await geminiService.streamQuizNDJSON(
+      {
+        content: cleanedText,
+        numQuestions: parseInt(numQuestions) || 10,
+        quizType: quizType || 'mcq',
+        difficulty: difficulty || 'medium',
+        language: language || 'en',
+        category: category || ''
+      },
+      (evt) => {
+        if (!evt || !evt.event) return;
+        if (evt.event === 'meta') {
+          collected.meta = evt;
+          send({ event: 'meta', data: evt });
+        } else if (evt.event === 'question') {
+          collected.questions.push(evt.question);
+          send({ event: 'question', index: evt.index, data: evt.question, received: collected.questions.length });
+        } else if (evt.event === 'done') {
+          send({ event: 'stream-complete' });
+        } else if (evt.event === 'error') {
+          send({ event: 'error', message: evt.message || 'Streaming failed' });
+        }
+      }
+    );
+
+    // Persist quiz
+    if (collected.questions.length > 0) {
+      try {
+        const title = collected.meta?.title || 'Generated Quiz';
+        const description = collected.meta?.description || '';
+        const cat = collected.meta?.category || category || 'General';
+
+        const quiz = await Quiz.create({
+          title,
+          description,
+          creator: req.user._id,
+          questions: collected.questions,
+          category: cat,
+          tags: await geminiService.extractTopics(cleanedText),
+          language: language || 'en',
+          difficulty: difficulty || 'mixed',
+          sourceContent: {
+            text: cleanedText.substring(0, 5000),
+            filename: req.file.originalname,
+            fileType: req.file.mimetype
+          }
+        });
+
+        // File metadata
+        try {
+          await FileDoc.create({ filename: req.file.filename, originalname: req.file.originalname, mimetype: req.file.mimetype, size: req.file.size, path: req.file.path, uploadedBy: req.user._id });
+        } catch (_) { /* ignore */ }
+
+        // Persist Q/A
+        try {
+          for (const q of quiz.questions) {
+            const qDoc = await QuestionDoc.create({ quizId: quiz._id, questionText: q.questionText, type: q.type, correctAnswer: q.correctAnswer, explanation: q.explanation, difficulty: q.difficulty, points: q.points });
+            if (q.options?.length) {
+              const optionsToInsert = q.options.map(o => ({ questionId: qDoc._id, text: o.text, isCorrect: !!o.isCorrect }));
+              if (optionsToInsert.length) await AnswerOption.insertMany(optionsToInsert);
+            }
+          }
+        } catch (_) { /* non-fatal */ }
+
+        // Embedding
+        try {
+          const embeddingId = await embeddingService.createQuizEmbedding(quiz);
+          if (embeddingId) {
+            quiz.embeddingId = embeddingId;
+            await quiz.save();
+          }
+        } catch (_) { /* non-fatal */ }
+
+        await req.user.incrementUsage('generated');
+
+        send({ event: 'completed', data: { quiz: { id: quiz._id, title: quiz.title, totalQuestions: quiz.questions.length } } });
+      } catch (persistErr) {
+        send({ event: 'error', message: persistErr.message || 'Failed to save quiz' });
+      }
+    } else {
+      send({ event: 'error', message: 'No questions generated' });
+    }
+
+    clearInterval(hb);
+    res.end();
+  } catch (err) {
+    try {
+      res.write(`data: ${JSON.stringify({ event: 'error', message: err.message || 'Upload/streaming failed' })}\n\n`);
+      res.end();
+    } catch (_) { /* ignore */ }
+  }
+});
+
+/**
  * @route   POST /api/quiz/generate-from-text
  * @desc    Generate quiz from plain text
  * @access  Private
@@ -189,7 +331,7 @@ router.post('/generate-from-text', protect, async (req, res) => {
 
     const quizData = quizResult.data;
 
-// Save quiz
+    // Save quiz
     const quiz = await Quiz.create({
       title: quizData.title || 'Generated Quiz',
       description: quizData.description || '',
@@ -241,6 +383,129 @@ router.post('/generate-from-text', protect, async (req, res) => {
       success: false,
       message: error.message || 'Failed to generate quiz'
     });
+  }
+});
+
+/**
+ * @route   POST /api/quiz/stream-from-text
+ * @desc    Stream quiz generation (SSE + NDJSON from Gemini)
+ * @access  Private
+ */
+router.post('/stream-from-text', protect, async (req, res) => {
+  try {
+    const { text, numQuestions, quizType, difficulty, language, category } = req.body;
+
+    if (!text || text.trim().length < 100) {
+      res.status(400);
+      res.setHeader('Content-Type', 'application/json');
+      return res.end(JSON.stringify({ success: false, message: 'Text must be at least 100 characters long' }));
+    }
+    if (!req.user.canGenerateQuiz()) {
+      res.status(403);
+      res.setHeader('Content-Type', 'application/json');
+      return res.end(JSON.stringify({ success: false, message: 'Quiz generation limit reached. Please upgrade your plan.' }));
+    }
+
+    // SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    const send = (obj) => {
+      res.write(`data: ${JSON.stringify(obj)}\n\n`);
+    };
+
+    // Heartbeat to keep connection open
+    const hb = setInterval(() => res.write(': ping\n\n'), 15000);
+
+    send({ event: 'ready' });
+
+    const collected = { meta: null, questions: [] };
+
+    await geminiService.streamQuizNDJSON(
+      {
+        content: text,
+        numQuestions: parseInt(numQuestions) || 10,
+        quizType: quizType || 'mcq',
+        difficulty: difficulty || 'medium',
+        language: language || 'en',
+        category: category || ''
+      },
+      (evt) => {
+        if (!evt || !evt.event) return;
+        if (evt.event === 'meta') {
+          collected.meta = evt;
+          send({ event: 'meta', data: evt });
+        } else if (evt.event === 'question') {
+          collected.questions.push(evt.question);
+          send({ event: 'question', index: evt.index, data: evt.question, received: collected.questions.length });
+        } else if (evt.event === 'done') {
+          send({ event: 'stream-complete' });
+        } else if (evt.event === 'error') {
+          send({ event: 'error', message: evt.message || 'Streaming failed' });
+        }
+      }
+    );
+
+    // After stream, persist quiz if we have enough questions
+    if (collected.questions.length > 0) {
+      try {
+        const title = collected.meta?.title || 'Generated Quiz';
+        const description = collected.meta?.description || '';
+        const cat = collected.meta?.category || category || 'General';
+
+        const quiz = await Quiz.create({
+          title,
+          description,
+          creator: req.user._id,
+          questions: collected.questions,
+          category: cat,
+          tags: await geminiService.extractTopics(text),
+          language: language || 'en',
+          difficulty: difficulty || 'mixed',
+          sourceContent: { text: text.substring(0, 5000), fileType: 'text/plain' }
+        });
+
+        // Persist Q/A documents (best-effort)
+        try {
+          for (const q of quiz.questions) {
+            const qDoc = await QuestionDoc.create({ quizId: quiz._id, questionText: q.questionText, type: q.type, correctAnswer: q.correctAnswer, explanation: q.explanation, difficulty: q.difficulty, points: q.points });
+            if (q.options?.length) {
+              const optionsToInsert = q.options.map(o => ({ questionId: qDoc._id, text: o.text, isCorrect: !!o.isCorrect }));
+              if (optionsToInsert.length) await AnswerOption.insertMany(optionsToInsert);
+            }
+          }
+        } catch (_) { /* non-fatal */ }
+
+        // Embedding (best-effort)
+        try {
+          const embeddingId = await embeddingService.createQuizEmbedding(quiz);
+          if (embeddingId) {
+            quiz.embeddingId = embeddingId;
+            await quiz.save();
+          }
+        } catch (_) { /* non-fatal */ }
+
+        await req.user.incrementUsage('generated');
+
+        send({ event: 'completed', data: { quiz: { id: quiz._id, title: quiz.title, totalQuestions: quiz.questions.length } } });
+      } catch (persistErr) {
+        send({ event: 'error', message: persistErr.message || 'Failed to save quiz' });
+      }
+    } else {
+      send({ event: 'error', message: 'No questions generated' });
+    }
+
+    clearInterval(hb);
+    res.end();
+  } catch (err) {
+    try {
+      res.write(`data: ${JSON.stringify({ event: 'error', message: err.message || 'Streaming failed' })}\n\n`);
+      res.end();
+    } catch (_) {
+      // ignore
+    }
   }
 });
 
@@ -381,13 +646,45 @@ router.get('/:id', optionalAuth, async (req, res) => {
 });
 
 /**
+ * @route   POST /api/quiz/:id/log-violation
+ * @desc    Log proctoring violation during quiz attempt
+ * @access  Private
+ */
+router.post('/:id/log-violation', protect, async (req, res) => {
+  try {
+    const { violation } = req.body;
+
+    if (!violation || !violation.type) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid violation data'
+      });
+    }
+
+    // Log violation (can be used for analytics/monitoring)
+    console.log(`🚨 Proctoring violation - User: ${req.user._id}, Quiz: ${req.params.id}, Type: ${violation.type}`);
+
+    res.json({
+      success: true,
+      message: 'Violation logged'
+    });
+  } catch (error) {
+    console.error('Log violation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to log violation'
+    });
+  }
+});
+
+/**
  * @route   POST /api/quiz/:id/submit
  * @desc    Submit quiz answers and get results
  * @access  Private
  */
 router.post('/:id/submit', protect, async (req, res) => {
   try {
-    const { answers, timeTaken } = req.body;
+    const { answers, timeTaken, proctoring } = req.body;
 
     const quiz = await Quiz.findById(req.params.id);
     if (!quiz) {
@@ -434,8 +731,8 @@ router.post('/:id/submit', protect, async (req, res) => {
     const percentage = (correctAnswers / quiz.questions.length) * 100;
     const passed = percentage >= quiz.passingScore;
 
-    // Save to history
-    const history = await QuizHistory.create({
+    // Save to history with proctoring data
+    const historyData = {
       user: req.user._id,
       quiz: quiz._id,
       answers: detailedAnswers,
@@ -446,7 +743,21 @@ router.post('/:id/submit', protect, async (req, res) => {
       incorrectAnswers: quiz.questions.length - correctAnswers,
       timeTaken: timeTaken || 0,
       passed
-    });
+    };
+
+    // Add proctoring data if provided
+    if (proctoring) {
+      historyData.proctoring = {
+        enabled: true,
+        violations: proctoring.violations || [],
+        violationCount: proctoring.violationCount || 0,
+        maxViolationsReached: proctoring.maxViolationsReached || false,
+        flaggedForReview: proctoring.flaggedForReview || false,
+        autoSubmitted: proctoring.autoSubmitted || false
+      };
+    }
+
+    const history = await QuizHistory.create(historyData);
 
     // Update user usage and points
     await req.user.incrementUsage('taken');

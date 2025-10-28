@@ -157,6 +157,116 @@ router.get('/leaderboard', async (req, res) => {
 });
 
 /**
+ * @route   GET /api/analytics/leaderboard/class/:classId
+ * @desc    Get class-specific leaderboard
+ * @access  Private (students and teachers of the class)
+ */
+router.get('/leaderboard/class/:classId', protect, async (req, res) => {
+  try {
+    const { limit = 20 } = req.query;
+    const { classId } = req.params;
+
+    // Verify class exists and user has access
+    const Class = require('../models/Class');
+    const klass = await Class.findById(classId);
+    
+    if (!klass) {
+      return res.status(404).json({
+        success: false,
+        message: 'Class not found'
+      });
+    }
+
+    // Check if user is teacher or student in this class
+    const isTeacher = klass.teacher.toString() === req.user._id.toString();
+    const isStudent = klass.students.some(s => s.toString() === req.user._id.toString());
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isTeacher && !isStudent && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to view this class leaderboard'
+      });
+    }
+
+    // Get student IDs from class
+    const studentIds = klass.students.map(s => s.toString());
+
+    // Aggregate quiz results for students in this class
+    const leaderboard = await QuizHistory.aggregate([
+      {
+        $match: {
+          user: { $in: klass.students }
+        }
+      },
+      {
+        $group: {
+          _id: '$user',
+          totalPoints: { $sum: '$score' },
+          quizzesTaken: { $count: {} },
+          averageScore: { $avg: '$percentage' },
+          totalCorrect: { $sum: '$correctAnswers' },
+          totalQuestions: { $sum: '$totalQuestions' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo'
+        }
+      },
+      {
+        $unwind: '$userInfo'
+      },
+      {
+        $project: {
+          userId: '$_id',
+          name: '$userInfo.name',
+          email: '$userInfo.email',
+          totalPoints: 1,
+          quizzesTaken: 1,
+          averageScore: { $round: ['$averageScore', 2] },
+          accuracy: {
+            $round: [
+              {
+                $multiply: [
+                  { $divide: ['$totalCorrect', '$totalQuestions'] },
+                  100
+                ]
+              },
+              2
+            ]
+          }
+        }
+      },
+      {
+        $sort: { totalPoints: -1, averageScore: -1 }
+      },
+      {
+        $limit: parseInt(limit)
+      }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        leaderboard,
+        className: klass.name,
+        totalStudents: klass.students.length
+      }
+    });
+  } catch (error) {
+    console.error('Class leaderboard error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch class leaderboard'
+    });
+  }
+});
+
+/**
  * @route   GET /api/analytics/my-history
  * @desc    Get user's quiz history
  * @access  Private

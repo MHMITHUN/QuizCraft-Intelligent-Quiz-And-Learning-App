@@ -1,16 +1,36 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Animated, TouchableOpacity, Dimensions } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  FlatList, 
+  Animated, 
+  TouchableOpacity, 
+  Dimensions,
+  ScrollView,
+  Modal,
+  ActivityIndicator 
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { analyticsAPI } from '../../services/api';
+import { analyticsAPI, classesAPI } from '../../services/api';
 import { useI18n } from '../../i18n';
+import { useAuth } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
 export default function LeaderboardScreen() {
   const { t } = useI18n();
-  const [items, setItems] = useState([]);
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('global'); // 'global' or 'class'
+  const [globalLeaderboard, setGlobalLeaderboard] = useState([]);
+  const [classLeaderboard, setClassLeaderboard] = useState([]);
+  const [myClasses, setMyClasses] = useState([]);
+  const [selectedClass, setSelectedClass] = useState(null);
+  const [showClassSelector, setShowClassSelector] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [classLoading, setClassLoading] = useState(false);
+  
   const pulse = useRef(new Animated.Value(0.4)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -24,14 +44,28 @@ export default function LeaderboardScreen() {
       ])
     ).start();
 
-    // Load data
-    loadLeaderboard();
+    // Load initial data
+    loadData();
   }, []);
 
-  const loadLeaderboard = async () => {
+  const loadData = async () => {
     try {
-      const res = await analyticsAPI.getLeaderboard(20);
-      setItems(res?.data?.data?.leaderboard || []);
+      // Load global leaderboard
+      const globalRes = await analyticsAPI.getLeaderboard(20);
+      setGlobalLeaderboard(globalRes?.data?.data?.leaderboard || []);
+      
+      // Load user's classes if student or teacher
+      if (user?.role === 'student' || user?.role === 'teacher') {
+        const classesRes = await classesAPI.mine();
+        const classes = classesRes?.data?.data?.classes || [];
+        setMyClasses(classes);
+        
+        // Auto-select first class if available
+        if (classes.length > 0) {
+          setSelectedClass(classes[0]);
+          loadClassLeaderboard(classes[0]._id);
+        }
+      }
       
       // Animate entrance
       Animated.parallel([
@@ -47,10 +81,31 @@ export default function LeaderboardScreen() {
         })
       ]).start();
     } catch (e) {
-      setItems([]);
+      console.error('Load leaderboard error:', e);
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadClassLeaderboard = async (classId) => {
+    if (!classId) return;
+    
+    setClassLoading(true);
+    try {
+      const res = await analyticsAPI.getClassLeaderboard(classId, 20);
+      setClassLeaderboard(res?.data?.data?.leaderboard || []);
+    } catch (e) {
+      console.error('Load class leaderboard error:', e);
+      setClassLeaderboard([]);
+    } finally {
+      setClassLoading(false);
+    }
+  };
+
+  const handleClassSelect = (classItem) => {
+    setSelectedClass(classItem);
+    setShowClassSelector(false);
+    loadClassLeaderboard(classItem._id);
   };
 
   const Skeleton = () => (<Animated.View style={[styles.skel, { opacity: pulse }]} />);
@@ -63,20 +118,20 @@ export default function LeaderboardScreen() {
   };
 
   const getPodiumHeight = (index) => {
-    if (index === 0) return 120; // Gold - tallest
-    if (index === 1) return 90;  // Silver
-    if (index === 2) return 70;  // Bronze
+    if (index === 0) return 120;
+    if (index === 1) return 90;
+    if (index === 2) return 70;
     return 50;
   };
 
   const getPodiumColor = (index) => {
-    if (index === 0) return ['#FFD700', '#FFA500']; // Gold gradient
-    if (index === 1) return ['#C0C0C0', '#A0A0A0']; // Silver gradient
-    if (index === 2) return ['#CD7F32', '#A0522D']; // Bronze gradient
+    if (index === 0) return ['#FFD700', '#FFA500'];
+    if (index === 1) return ['#C0C0C0', '#A0A0A0'];
+    if (index === 2) return ['#CD7F32', '#A0522D'];
     return ['#667eea', '#764ba2'];
   };
 
-  const renderTopThree = () => {
+  const renderTopThree = (items) => {
     const topThree = items.slice(0, 3);
     if (topThree.length === 0) return null;
 
@@ -85,7 +140,9 @@ export default function LeaderboardScreen() {
         opacity: fadeAnim,
         transform: [{ translateY: slideAnim }]
       }]}>
-        <Text style={styles.podiumTitle}>🏆 {t('analytics:leaderboard')} 🏆</Text>
+        <Text style={styles.podiumTitle}>
+          🏆 {activeTab === 'global' ? 'Global Champions' : `${selectedClass?.name || 'Class'} Champions`} 🏆
+        </Text>
         
         <View style={styles.podium}>
           {/* Second Place */}
@@ -148,9 +205,10 @@ export default function LeaderboardScreen() {
   };
 
   const ListItem = React.memo(({ item, index }) => {
-    const actualIndex = index + 3; // Since top 3 are shown in podium
+    const actualIndex = index + 3;
     const scaleAnim = useRef(new Animated.Value(0)).current;
     const slideInAnim = useRef(new Animated.Value(30)).current;
+    const isCurrentUser = item.userId?.toString() === user?._id?.toString();
 
     React.useEffect(() => {
       Animated.parallel([
@@ -177,18 +235,29 @@ export default function LeaderboardScreen() {
           { translateX: slideInAnim }
         ]
       }}>
-        <TouchableOpacity style={styles.card} activeOpacity={0.8}>
+        <TouchableOpacity 
+          style={[
+            styles.card,
+            isCurrentUser && styles.cardHighlight
+          ]} 
+          activeOpacity={0.8}
+        >
           <View style={styles.rankContainer}>
             <Text style={styles.rank}>{actualIndex + 1}</Text>
           </View>
           
           <View style={styles.userInfo}>
-            <View style={styles.avatar}>
+            <View style={[
+              styles.avatar,
+              isCurrentUser && { backgroundColor: '#EC4899' }
+            ]}>
               <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
             </View>
             
             <View style={styles.userDetails}>
-              <Text style={styles.name}>{item.name}</Text>
+              <Text style={styles.name}>
+                {item.name} {isCurrentUser && '(You)'}
+              </Text>
               <View style={styles.stats}>
                 <View style={styles.statItem}>
                   <Ionicons name="trophy" size={14} color="#F59E0B" />
@@ -215,23 +284,135 @@ export default function LeaderboardScreen() {
     <ListItem item={item} index={index} />
   );
 
+  const renderClassSelector = () => (
+    <Modal
+      visible={showClassSelector}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      transparent={false}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>Select Class</Text>
+          <TouchableOpacity onPress={() => setShowClassSelector(false)}>
+            <Ionicons name="close" size={24} color="#1f2937" />
+          </TouchableOpacity>
+        </View>
+        
+        <ScrollView style={styles.modalContent}>
+          {myClasses.map((classItem) => (
+            <TouchableOpacity
+              key={classItem._id}
+              style={[
+                styles.classItem,
+                selectedClass?._id === classItem._id && styles.classItemSelected
+              ]}
+              onPress={() => handleClassSelect(classItem)}
+            >
+              <View style={styles.classIcon}>
+                <Ionicons name="school" size={24} color="#4F46E5" />
+              </View>
+              <View style={styles.classInfo}>
+                <Text style={styles.className}>{classItem.name}</Text>
+                <Text style={styles.classStats}>
+                  {classItem.students?.length || 0} students
+                </Text>
+              </View>
+              {selectedClass?._id === classItem._id && (
+                <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+
+  const currentLeaderboard = activeTab === 'global' ? globalLeaderboard : classLeaderboard;
+  const currentLoading = activeTab === 'global' ? loading : (loading || classLoading);
+
   return (
     <View style={styles.container}>
-      {loading ? (
+      {/* Tab Selector */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'global' && styles.tabActive]}
+          onPress={() => setActiveTab('global')}
+        >
+          <Ionicons 
+            name="globe" 
+            size={20} 
+            color={activeTab === 'global' ? '#4F46E5' : '#9CA3AF'} 
+          />
+          <Text style={[
+            styles.tabText,
+            activeTab === 'global' && styles.tabTextActive
+          ]}>
+            Global
+          </Text>
+        </TouchableOpacity>
+        
+        {myClasses.length > 0 && (
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'class' && styles.tabActive]}
+            onPress={() => setActiveTab('class')}
+          >
+            <Ionicons 
+              name="school" 
+              size={20} 
+              color={activeTab === 'class' ? '#4F46E5' : '#9CA3AF'} 
+            />
+            <Text style={[
+              styles.tabText,
+              activeTab === 'class' && styles.tabTextActive
+            ]}>
+              Class
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Class Selector Button */}
+      {activeTab === 'class' && myClasses.length > 0 && (
+        <TouchableOpacity
+          style={styles.classSelectorButton}
+          onPress={() => setShowClassSelector(true)}
+        >
+          <Ionicons name="school" size={20} color="#4F46E5" />
+          <Text style={styles.classSelectorText}>
+            {selectedClass?.name || 'Select Class'}
+          </Text>
+          <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+        </TouchableOpacity>
+      )}
+
+      {currentLoading ? (
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingTitle}>🏆 Loading Leaderboard...</Text>
-          {[...Array(8)].map((_, i) => <Skeleton key={i} />)}
+          <ActivityIndicator size="large" color="#4F46E5" />
+          <Text style={styles.loadingTitle}>Loading Leaderboard...</Text>
+        </View>
+      ) : currentLeaderboard.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="trophy-outline" size={64} color="#9CA3AF" />
+          <Text style={styles.emptyTitle}>No Data Yet</Text>
+          <Text style={styles.emptyText}>
+            {activeTab === 'global' 
+              ? 'Complete quizzes to appear on the leaderboard!'
+              : 'No quiz attempts in this class yet.'}
+          </Text>
         </View>
       ) : (
         <FlatList
-          data={items.slice(3)} // Skip top 3 as they're shown in podium
-          keyExtractor={(i) => String(i.userId)}
+          data={currentLeaderboard.slice(3)}
+          keyExtractor={(i, idx) => String(i.userId || idx)}
           renderItem={renderItem}
-          ListHeaderComponent={renderTopThree}
+          ListHeaderComponent={renderTopThree(currentLeaderboard)}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {renderClassSelector()}
     </View>
   );
 }
@@ -239,31 +420,101 @@ export default function LeaderboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     backgroundColor: '#f8fafc',
   },
-  loadingContainer: {
-    padding: 20,
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    gap: 8,
+  },
+  tabActive: {
+    backgroundColor: '#EEF2FF',
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#9CA3AF',
+  },
+  tabTextActive: {
+    color: '#4F46E5',
+  },
+  classSelectorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'white',
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 8,
+  },
+  classSelectorText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   loadingTitle: {
-    fontSize: 18,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 20,
+    color: '#6B7280',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
   },
   listContent: {
     paddingBottom: 20,
   },
-  
-  // Podium Styles
   podiumContainer: {
     alignItems: 'center',
     marginBottom: 30,
     paddingHorizontal: 20,
+    marginTop: 20,
   },
   podiumTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1f2937',
     textAlign: 'center',
@@ -305,7 +556,7 @@ const styles = StyleSheet.create({
   },
   podiumName: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 4,
@@ -329,12 +580,10 @@ const styles = StyleSheet.create({
   },
   crownText: {
     color: 'white',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
     letterSpacing: 1,
   },
-  
-  // List Item Styles
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -350,6 +599,10 @@ const styles = StyleSheet.create({
     elevation: 5,
     borderLeftWidth: 4,
     borderLeftColor: '#667eea',
+  },
+  cardHighlight: {
+    borderLeftColor: '#EC4899',
+    backgroundColor: '#FDF2F8',
   },
   rankContainer: {
     width: 40,
@@ -422,13 +675,71 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontWeight: '500',
   },
-  
-  // Loading Skeleton
   skel: {
     height: 72,
     backgroundColor: '#e5e7eb',
     borderRadius: 16,
     marginVertical: 6,
     marginHorizontal: 16,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 16,
+  },
+  classItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  classItemSelected: {
+    borderColor: '#10B981',
+    backgroundColor: '#ECFDF5',
+  },
+  classIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  classInfo: {
+    flex: 1,
+  },
+  className: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  classStats: {
+    fontSize: 14,
+    color: '#6B7280',
   },
 });

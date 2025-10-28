@@ -32,7 +32,18 @@ export default function LoginScreen({ navigation }) {
     const result = await login(email, password);
     
     if (!result.success) {
-      Alert.alert('Login Failed', result.error);
+      if (/verify/i.test(String(result.error))) {
+        Alert.alert(
+          'Email Not Verified',
+          'Please verify your email before logging in. Tap OK to go to verification.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'OK', onPress: () => navigation.navigate('VerifyEmail', { email }) }
+          ]
+        );
+      } else {
+        Alert.alert('Login Failed', result.error);
+      }
     }
   };
 

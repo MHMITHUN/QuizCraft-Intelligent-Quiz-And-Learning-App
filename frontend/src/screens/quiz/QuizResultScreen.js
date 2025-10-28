@@ -66,14 +66,26 @@ export default function QuizResultScreen({ route, navigation }) {
     try {
       const res = await historyAPI.getById(historyId);
       const historyData = res?.data?.data?.history;
-      if (historyData) {
-        setResult(historyData);
-      } else {
+      
+      if (!historyData) {
         throw new Error('No result data found');
       }
+
+      // Transform the answers array to match the expected format
+      // Backend stores answers as [{questionId, userAnswer, isCorrect, ...}]
+      // Frontend expects answers as ["answer1", "answer2", ...]
+      const userAnswersArray = historyData.answers?.map(ans => ans.userAnswer) || [];
+      
+      setResult({
+        ...historyData,
+        answers: userAnswersArray, // Convert to simple array format for rendering
+        quiz: historyData.quiz,
+        percentage: historyData.percentage,
+        timeTaken: historyData.timeTaken,
+      });
     } catch (error) {
       console.error('Load results error:', error);
-      Alert.alert('Error', 'Failed to load quiz results');
+      Alert.alert('Error', 'Failed to load quiz results. Please try again.');
       navigation.goBack();
     } finally {
       setLoading(false);
@@ -90,6 +102,8 @@ export default function QuizResultScreen({ route, navigation }) {
   };
 
   const renderQuestionExplanation = (question, index) => {
+    if (!question) return null;
+    
     const userAnswer = result.answers[index];
     const correctOption = question.options?.find(opt => opt.isCorrect);
     const isCorrect = userAnswer === correctOption?.text;
@@ -165,12 +179,12 @@ export default function QuizResultScreen({ route, navigation }) {
     );
   }
 
-  const gradeInfo = getGradeInfo(result.percentage);
-  const correctAnswers = result.quiz?.questions?.filter((q, i) => {
+  const gradeInfo = getGradeInfo(result.percentage || 0);
+  const correctAnswers = result.correctAnswers || result.quiz?.questions?.filter((q, i) => {
     const correctOption = q.options?.find(opt => opt.isCorrect);
     return result.answers[i] === correctOption?.text;
   }).length || 0;
-  const totalQuestions = result.quiz?.questions?.length || 0;
+  const totalQuestions = result.totalQuestions || result.quiz?.questions?.length || 0;
 
   return (
     <View style={styles.container}>

@@ -49,6 +49,40 @@ const quizAttemptSchema = new mongoose.Schema({
   deviceInfo: {
     platform: String,
     userAgent: String
+  },
+  // Anti-plagiarism / Proctoring data
+  proctoring: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    violations: [{
+      type: {
+        type: String,
+        enum: ['APP_SWITCH', 'TAB_SWITCH', 'WINDOW_BLUR', 'COPY_ATTEMPT', 'PASTE_ATTEMPT', 'RIGHT_CLICK', 'OTHER'],
+      },
+      timestamp: Date,
+      timeFromStart: Number, // seconds from quiz start
+      platform: String,
+      description: String,
+      details: mongoose.Schema.Types.Mixed
+    }],
+    violationCount: {
+      type: Number,
+      default: 0
+    },
+    maxViolationsReached: {
+      type: Boolean,
+      default: false
+    },
+    flaggedForReview: {
+      type: Boolean,
+      default: false
+    },
+    autoSubmitted: {
+      type: Boolean,
+      default: false
+    }
   }
 }, {
   timestamps: true

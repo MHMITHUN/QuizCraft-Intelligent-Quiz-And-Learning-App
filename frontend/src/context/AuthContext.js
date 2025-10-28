@@ -38,7 +38,11 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.login(email, password);
       
       const { user, token } = response.data.data;
-      await AsyncStorage.setItem('token', token);
+      if (token) {
+        await AsyncStorage.setItem('token', String(token));
+      } else {
+        await AsyncStorage.removeItem('token');
+      }
       setUser(user);
       
       return { success: true };
@@ -53,20 +57,31 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (name, email, password, role = 'student') => {
     try {
-      setLoading(true);
+      console.log('[AuthContext] Starting register...');
       setError(null);
-      const response = await authAPI.register(name, email, password, role);
+      // DON'T set loading here to avoid re-renders
       
-      const { user, token } = response.data.data;
-      await AsyncStorage.setItem('token', token);
-      setUser(user);
-      return { success: true };
+      const response = await authAPI.register(name, email, password, role);
+      console.log('[AuthContext] Register response received');
+      
+      if (!response || !response.data || !response.data.data) {
+        throw new Error('Invalid response from server');
+      }
+      
+      const { user, token } = response.data.data || {};
+      console.log('[AuthContext] User email:', user?.email, 'Verified?', user?.isEmailVerified);
+      
+      // DON'T change any state here - just return the result
+      // Navigation will handle the flow
+      
+      console.log('[AuthContext] Register complete, success!');
+      return { success: true, needsVerification: !user?.isEmailVerified, user };
     } catch (err) {
-      const errorMsg = err.message || 'Registration failed';
+      console.error('[AuthContext] Register error:', err);
+      console.error('[AuthContext] Error details:', err.response?.data || err.message);
+      const errorMsg = err.response?.data?.message || err.message || 'Registration failed';
       setError(errorMsg);
       return { success: false, error: errorMsg };
-    } finally {
-      setLoading(false);
     }
   };
 

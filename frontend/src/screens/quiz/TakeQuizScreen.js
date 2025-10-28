@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Platform, Animated, Dimensions } from 'react-native';
 import { quizAPI } from '../../services/api';
 import { useI18n } from '../../i18n';
@@ -6,6 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import ProgressIndicator from '../../components/quiz/ProgressIndicator';
 import QuizButton from '../../components/quiz/QuizButton';
 import LoadingIndicator from '../../components/quiz/LoadingIndicator';
+import useAntiPlagiarism from '../../hooks/useAntiPlagiarism';
+import AntiPlagiarismWarning from '../../components/quiz/AntiPlagiarismWarning';
+import ViolationBadge from '../../components/quiz/ViolationBadge';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -20,6 +23,42 @@ export default function TakeQuizScreen({ route, navigation }) {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.9));
   const [progressAnim] = useState(new Animated.Value(0));
+  const startTimeRef = useRef(Date.now());
+
+  // Anti-plagiarism configuration
+  const PROCTORING_ENABLED = true; // Set to false to disable
+  const MAX_VIOLATIONS = 3;
+
+  // Initialize anti-plagiarism monitoring
+  const {
+    violations,
+    violationCount,
+    isAppActive,
+    warningVisible,
+    maxViolations,
+    isMaxViolationsReached,
+    startMonitoring,
+    stopMonitoring,
+    dismissWarning,
+    getViolationSummary,
+  } = useAntiPlagiarism({
+    enabled: PROCTORING_ENABLED,
+    maxViolations: MAX_VIOLATIONS,
+    onViolation: async (violation, count) => {
+      // Log violation to backend
+      try {
+        await quizAPI.logViolation(id, violation);
+      } catch (error) {
+        console.error('Failed to log violation:', error);
+      }
+    },
+    onMaxViolations: async (allViolations) => {
+      // Auto-submit quiz when max violations reached - NO user interaction needed
+      console.log('🚨 Max violations reached - Auto-submitting quiz immediately');
+      // We'll trigger this through useEffect to avoid closure issues
+    },
+    strictMode: Platform.OS === 'web', // Enable strict mode on web
+  });
 
   useEffect(() => {
     (async () => {
@@ -43,12 +82,25 @@ export default function TakeQuizScreen({ route, navigation }) {
             useNativeDriver: true,
           })
         ]).start();
+
+        // Start anti-plagiarism monitoring
+        if (PROCTORING_ENABLED) {
+          startMonitoring();
+          console.log('🛡️ Anti-plagiarism monitoring started');
+        }
       } catch (e) {
         Alert.alert('Error', 'Failed to load quiz');
       } finally {
         setLoading(false);
       }
     })();
+
+    // Cleanup: stop monitoring when component unmounts
+    return () => {
+      if (PROCTORING_ENABLED) {
+        stopMonitoring();
+      }
+    };
   }, [id]);
 
   useEffect(() => {
@@ -62,6 +114,69 @@ export default function TakeQuizScreen({ route, navigation }) {
     }
   }, [answers, quiz]);
 
+  // Auto-submit when max violations reached
+  useEffect(() => {
+    if (isMaxViolationsReached && !submitting) {
+      console.log('🚨 Triggering auto-submit due to max violations');
+      
+      // Auto-submit after a brief delay to show the overlay message
+      const timer = setTimeout(() => {
+        handleAutoSubmit();
+      }, 2000); // 2 seconds to show the beautiful message
+
+      return () => clearTimeout(timer);
+    }
+  }, [isMaxViolationsReached, submitting]);
+
+  // Handle auto-submit when max violations reached
+  const handleAutoSubmit = async () => {
+    if (submitting) return; // Prevent double submission
+    
+    try {
+      setSubmitting(true);
+      stopMonitoring();
+
+      const timeTaken = Math.floor((Date.now() - startTimeRef.current) / 1000);
+      const proctoringData = {
+        violations: violations,
+        violationCount: violationCount,
+        maxViolationsReached: true,
+        flaggedForReview: true,
+        autoSubmitted: true,
+      };
+
+      console.log('🚀 Submitting quiz with proctoring data...');
+      const res = await quizAPI.submit(id, answers, timeTaken, proctoringData);
+      const historyId = res?.data?.data?.historyId;
+      
+      console.log('✅ Quiz submitted successfully, navigating to results...');
+      
+      // Use setTimeout to ensure navigation happens after state updates
+      setTimeout(() => {
+        navigation.replace('QuizResult', { 
+          historyId,
+          flagged: true,
+          autoSubmitted: true,
+        });
+      }, 100);
+    } catch (e) {
+      console.error('❌ Auto-submit error:', e);
+      setSubmitting(false);
+      
+      // Still navigate to results even on error, or show error and go back
+      Alert.alert(
+        'Submission Error', 
+        'Failed to submit quiz. Returning to home.',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('Home')
+          }
+        ]
+      );
+    }
+  };
+
   const submit = async () => {
     const unanswered = answers.some(a => a === null);
     if (unanswered) {
@@ -71,7 +186,18 @@ export default function TakeQuizScreen({ route, navigation }) {
 
     try {
       setSubmitting(true);
-      const res = await quizAPI.submit(id, answers, 0);
+      stopMonitoring();
+
+      const timeTaken = Math.floor((Date.now() - startTimeRef.current) / 1000);
+      const proctoringData = PROCTORING_ENABLED ? {
+        violations: violations,
+        violationCount: violationCount,
+        maxViolationsReached: isMaxViolationsReached,
+        flaggedForReview: violationCount > 0,
+        autoSubmitted: false,
+      } : null;
+
+      const res = await quizAPI.submit(id, answers, timeTaken, proctoringData);
       const historyId = res?.data?.data?.historyId;
       navigation.replace('QuizResult', { historyId });
     } catch (e) {
@@ -82,6 +208,11 @@ export default function TakeQuizScreen({ route, navigation }) {
   };
 
   const selectAnswer = (questionIndex, answer) => {
+    // Prevent interaction if max violations reached
+    if (isMaxViolationsReached) {
+      return;
+    }
+
     const copy = [...answers];
     copy[questionIndex] = answer;
     setAnswers(copy);
@@ -123,10 +254,12 @@ export default function TakeQuizScreen({ route, navigation }) {
                 style={[
                   styles.optionCard,
                   isSelected && styles.optionCardSelected,
-                  Platform.OS === 'web' && styles.webOption
+                  Platform.OS === 'web' && styles.webOption,
+                  isMaxViolationsReached && styles.optionCardDisabled
                 ]}
                 onPress={() => selectAnswer(index, opt.text)}
                 activeOpacity={0.7}
+                disabled={isMaxViolationsReached}
               >
                 <View style={styles.optionContent}>
                   <View style={[
@@ -168,17 +301,38 @@ export default function TakeQuizScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
+      {/* Anti-Plagiarism Warning Modal */}
+      {PROCTORING_ENABLED && (
+        <AntiPlagiarismWarning
+          visible={warningVisible}
+          onDismiss={dismissWarning}
+          violationCount={violationCount}
+          maxViolations={maxViolations}
+          lastViolation={violations[violations.length - 1]}
+          isMaxReached={isMaxViolationsReached}
+        />
+      )}
+
       {/* Header with progress */}
       <View style={styles.header}>
         <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => navigation.goBack()}
+          style={[styles.backButton, isMaxViolationsReached && styles.backButtonDisabled]} 
+          onPress={() => !isMaxViolationsReached && navigation.goBack()}
+          disabled={isMaxViolationsReached}
         >
-          <Ionicons name="arrow-back" size={24} color="#374151" />
+          <Ionicons name="arrow-back" size={24} color={isMaxViolationsReached ? "#9CA3AF" : "#374151"} />
         </TouchableOpacity>
         
         <View style={styles.headerContent}>
-          <Text style={styles.title} numberOfLines={2}>{quiz?.title}</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title} numberOfLines={1}>{quiz?.title}</Text>
+            {PROCTORING_ENABLED && (
+              <ViolationBadge 
+                violationCount={violationCount} 
+                maxViolations={maxViolations}
+              />
+            )}
+          </View>
           <ProgressIndicator 
             currentStep={currentQuestionIndex}
             totalSteps={totalCount}
@@ -231,6 +385,34 @@ export default function TakeQuizScreen({ route, navigation }) {
           </View>
         </ScrollView>
       </Animated.View>
+
+      {/* Submitting Overlay */}
+      {(submitting || isMaxViolationsReached) && (
+        <View style={styles.submittingOverlay}>
+          <View style={styles.submittingContent}>
+            {isMaxViolationsReached ? (
+              <>
+                <View style={styles.warningIconContainer}>
+                  <Ionicons name="shield-checkmark-outline" size={64} color="#DC2626" />
+                </View>
+                <Text style={styles.submittingTitle}>Maximum Violations Reached</Text>
+                <Text style={styles.submittingSubtitle}>
+                  Your quiz is being submitted automatically due to integrity violations.
+                </Text>
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#DC2626" />
+                  <Text style={styles.loadingText}>Submitting...</Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <ActivityIndicator size="large" color="#4F46E5" />
+                <Text style={styles.submittingText}>Submitting quiz...</Text>
+              </>
+            )}
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -282,14 +464,29 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
   },
+  backButtonDisabled: {
+    opacity: 0.5,
+    ...Platform.select({
+      web: {
+        cursor: 'not-allowed',
+      }
+    }),
+  },
   headerContent: {
     flex: 1,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    gap: 12,
   },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#111827',
-    marginBottom: 8,
+    flex: 1,
   },
   content: {
     flex: 1,
@@ -379,6 +576,15 @@ const styles = StyleSheet.create({
     borderColor: '#4F46E5',
     backgroundColor: '#F0F0FF',
   },
+  optionCardDisabled: {
+    opacity: 0.5,
+    backgroundColor: '#F3F4F6',
+    ...Platform.select({
+      web: {
+        cursor: 'not-allowed',
+      }
+    }),
+  },
   webOption: {
     // Web-specific hover effects handled by CSS
   },
@@ -424,6 +630,85 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     color: '#6B7280',
+    textAlign: 'center',
+  },
+  submittingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  submittingContent: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 40,
+    alignItems: 'center',
+    maxWidth: 400,
+    marginHorizontal: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 12,
+      },
+      web: {
+        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+      }
+    }),
+  },
+  warningIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  submittingTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#DC2626',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  submittingSubtitle: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+    paddingHorizontal: 10,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    width: '100%',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#DC2626',
+  },
+  submittingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
     textAlign: 'center',
   },
 });

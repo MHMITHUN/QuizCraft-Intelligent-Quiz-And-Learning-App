@@ -10,7 +10,7 @@ export { API_HOST };
 const api = axios.create({
   baseURL: API_URL,
   // Generation can take a while; give it more time
-  timeout: 120000,
+  timeout: 300000, // 5 minutes for quiz generation
   headers: {
     'Content-Type': 'application/json',
   },
@@ -55,10 +55,13 @@ export const authAPI = {
   guestAccess: () => api.post('/auth/guest-access'),
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
   verifyResetCode: (email, code) => api.post('/auth/verify-reset-code', { email, code }),
-  resetPassword: (email, code, newPassword) => 
-    api.post('/auth/reset-password', { email, code, newPassword }),
+  resetPassword: (email, code, password) => 
+    api.post('/auth/reset-password', { email, code, password }),
   requestRoleUpgrade: (targetRole) => 
     api.post('/auth/request-role-upgrade', { targetRole }),
+  // Email verification via OTP
+  sendVerificationCode: (email) => api.post('/auth/verify-email/send-code', { email }),
+  verifyEmailCode: (email, code) => api.post('/auth/verify-email/code', { email, code }),
 };
 
 // Quiz API
@@ -68,10 +71,149 @@ export const quizAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
   generateFromText: (data) => api.post('/quiz/generate-from-text', data),
+  
+  // Streaming methods - fallback to non-streaming with simulated progress for React Native
+  streamUploadAndGenerate: async (formData, onEvent) => {
+    // Extract numQuestions for progress simulation
+    const numQuestions = parseInt(formData.get('numQuestions')) || 5;
+    let currentProgress = 0;
+    
+    // Simulate ready event
+    onEvent({ event: 'ready' });
+    
+    // Simulate extracting
+    setTimeout(() => onEvent({ event: 'extracting' }), 300);
+    setTimeout(() => onEvent({ event: 'extracted' }), 800);
+    
+    // Simulate question generation progress - incremental
+    const progressInterval = setInterval(() => {
+      if (currentProgress < numQuestions) {
+        currentProgress++;
+        onEvent({ 
+          event: 'question', 
+          index: currentProgress - 1,
+          received: currentProgress,
+          data: { 
+            questionText: `Generating question ${currentProgress}...`,
+            difficulty: formData.get('difficulty') || 'medium'
+          }
+        });
+      }
+    }, 4000); // Every 4 seconds
+    
+    try {
+      // Call the non-streaming endpoint with proper config
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(
+        `${API_URL}/quiz/upload-and-generate`,
+        formData,
+        {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'multipart/form-data'
+          },
+          timeout: 300000, // 5 minutes
+        }
+      );
+      
+      clearInterval(progressInterval);
+      
+      // Simulate stream complete
+      onEvent({ event: 'stream-complete' });
+      
+      // Send completion event
+      const quizId = response.data.data?.quiz?.id || response.data.data?.quiz?._id;
+      onEvent({ 
+        event: 'completed', 
+        data: { 
+          quiz: { 
+            id: quizId,
+            title: response.data.data?.quiz?.title,
+            totalQuestions: response.data.data?.quiz?.questions?.length || numQuestions
+          } 
+        } 
+      });
+      
+      return response;
+    } catch (error) {
+      clearInterval(progressInterval);
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to generate quiz';
+      onEvent({ event: 'error', message: errorMsg });
+      throw error;
+    }
+  },
+  
+  streamFromText: async (data, onEvent) => {
+    const numQuestions = parseInt(data.numQuestions) || 5;
+    let questionCount = 0;
+    
+    // Simulate ready event
+    onEvent({ event: 'ready' });
+    
+    // Simulate progress - show questions being generated incrementally
+    const progressInterval = setInterval(() => {
+      if (questionCount < numQuestions) {
+        questionCount++;
+        onEvent({ 
+          event: 'question', 
+          index: questionCount - 1,
+          received: questionCount,
+          data: { 
+            questionText: `Generating question ${questionCount}...`,
+            difficulty: data.difficulty || 'medium'
+          }
+        });
+      }
+    }, 4000); // Every 4 seconds
+    
+    try {
+      // Call the non-streaming endpoint with direct axios call for better timeout control
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(
+        `${API_URL}/quiz/generate-from-text`,
+        data,
+        {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          },
+          timeout: 300000, // 5 minutes
+        }
+      );
+      
+      clearInterval(progressInterval);
+      
+      // Simulate stream complete
+      onEvent({ event: 'stream-complete' });
+      
+      // Send completion event
+      const quizId = response.data.data?.quiz?.id || response.data.data?.quiz?._id;
+      onEvent({ 
+        event: 'completed', 
+        data: { 
+          quiz: { 
+            id: quizId,
+            title: response.data.data?.quiz?.title,
+            totalQuestions: response.data.data?.quiz?.questions?.length || numQuestions
+          } 
+        } 
+      });
+      
+      return response;
+    } catch (error) {
+      clearInterval(progressInterval);
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to generate quiz';
+      onEvent({ event: 'error', message: errorMsg });
+      throw error;
+    }
+  },
+  
   getAll: (params) => api.get('/quiz', { params }),
   getById: (id) => api.get(`/quiz/${id}`),
-  submit: (id, answers, timeTaken) => 
-    api.post(`/quiz/${id}/submit`, { answers, timeTaken }),
+  submit: (id, answers, timeTaken, proctoring) => 
+    api.post(`/quiz/${id}/submit`, { answers, timeTaken, proctoring }),
+  logViolation: (id, violation) => 
+    api.post(`/quiz/${id}/log-violation`, { violation }),
   update: (id, data) => api.put(`/quiz/${id}`, data),
   delete: (id) => api.delete(`/quiz/${id}`),
   getMyQuizzes: () => api.get('/quiz/my/quizzes'),
@@ -107,9 +249,15 @@ export const analyticsAPI = {
   getQuizAnalytics: (quizId) => api.get(`/analytics/quiz/${quizId}/analytics`),
   getLeaderboard: (limit = 10) => 
     api.get('/analytics/leaderboard', { params: { limit } }),
+  getClassLeaderboard: (classId, limit = 20) =>
+    api.get(`/analytics/leaderboard/class/${classId}`, { params: { limit } }),
   getMyHistory: (page = 1, limit = 10) => 
     api.get('/analytics/my-history', { params: { page, limit } }),
   getHistoryDetail: (historyId) => api.get(`/analytics/history/${historyId}`),
+};
+
+// History API
+export const historyAPI = {
   getById: (historyId) => api.get(`/history/${historyId}`),
 };
 

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ScrollView, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ScrollView, TextInput, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as DocumentPicker from 'expo-document-picker';
 import { quizAPI } from '../../services/api';
 import { useI18n } from '../../i18n';
+import StreamingQuizLoader from '../../components/quiz/StreamingQuizLoader';
 
 export default function UploadScreen({ navigation }) {
   const { t } = useI18n();
@@ -14,6 +15,15 @@ export default function UploadScreen({ navigation }) {
   const [uploadType, setUploadType] = useState('text'); // 'text', 'file'
   const [showContentAdded, setShowContentAdded] = useState(false);
   const [contentFeedback, setContentFeedback] = useState('');
+  const [difficulty, setDifficulty] = useState('medium'); // easy, medium, hard
+  
+  // Streaming state
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamStatus, setStreamStatus] = useState('ready');
+  const [questionsGenerated, setQuestionsGenerated] = useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [quizMetadata, setQuizMetadata] = useState(null);
+  const [generatedQuizId, setGeneratedQuizId] = useState(null);
 
   const pickDocument = async () => {
     try {
@@ -72,44 +82,73 @@ export default function UploadScreen({ navigation }) {
 
     const safeNum = Number.parseInt(numQuestions) || 5;
 
-    setLoading(true);
+    // Reset streaming state
+    setIsStreaming(true);
+    setStreamStatus('ready');
+    setQuestionsGenerated(0);
+    setCurrentQuestion(null);
+    setQuizMetadata(null);
+    setGeneratedQuizId(null);
+
     try {
-      // Show content added feedback
-      setContentFeedback('📝 Text content added as resource - generating quiz questions...');
-      setShowContentAdded(true);
-      
-      const response = await quizAPI.generateFromText({
-        text: safeText,
-        numQuestions: safeNum,
-        quizType: 'mcq',
-        difficulty: 'medium',
-        language: 'en'
-      });
-      
-      setShowContentAdded(false);
-      
-      Alert.alert(
-        t('upload:success'), 
-        `Quiz successfully generated from your text content! ${safeNum} questions have been created.`,
-        [
-          {
-            text: 'View Quiz',
-            onPress: () => {
-              const quizId = response?.data?.data?.quiz?.id || response?.data?.data?.quiz?._id;
+      await quizAPI.streamFromText(
+        {
+          text: safeText,
+          numQuestions: safeNum,
+          quizType: 'mcq',
+          difficulty: difficulty,
+          language: 'en'
+        },
+        (event) => {
+          console.log('Stream event:', event);
+          
+          switch (event.event) {
+            case 'ready':
+              setStreamStatus('generating');
+              break;
+            
+            case 'meta':
+              setStreamStatus('generating');
+              setQuizMetadata({
+                title: event.data?.title,
+                category: event.data?.category,
+                description: event.data?.description
+              });
+              break;
+            
+            case 'question':
+              setStreamStatus('question');
+              setQuestionsGenerated(event.received || event.index + 1);
+              setCurrentQuestion(event.data);
+              break;
+            
+            case 'stream-complete':
+              setStreamStatus('saving');
+              break;
+            
+            case 'completed':
+              setStreamStatus('complete');
+              const quizId = event.data?.quiz?.id;
               if (quizId) {
-                navigation.navigate('QuizDetail', { id: quizId });
+                setGeneratedQuizId(quizId);
+                setTimeout(() => {
+                  setIsStreaming(false);
+                  navigation.navigate('QuizDetail', { id: quizId });
+                }, 1500);
               }
-            }
+              break;
+            
+            case 'error':
+              setIsStreaming(false);
+              Alert.alert('Error', event.message || 'Failed to generate quiz');
+              break;
           }
-        ]
+        }
       );
     } catch (error) {
       console.error('Generate from text error:', error);
-      const serverMsg = error?.response?.data?.message;
-      const detailed = serverMsg || error?.message || 'Failed to generate quiz';
-      Alert.alert(t('common:appName'), detailed);
-    } finally {
-      setLoading(false);
+      setIsStreaming(false);
+      Alert.alert(t('common:appName'), error?.message || 'Failed to generate quiz');
     }
   };
 
@@ -119,7 +158,14 @@ export default function UploadScreen({ navigation }) {
       return;
     }
 
-    setLoading(true);
+    // Reset streaming state
+    setIsStreaming(true);
+    setStreamStatus('ready');
+    setQuestionsGenerated(0);
+    setCurrentQuestion(null);
+    setQuizMetadata(null);
+    setGeneratedQuizId(null);
+
     try {
       const formData = new FormData();
       formData.append('file', {
@@ -129,35 +175,89 @@ export default function UploadScreen({ navigation }) {
       });
       formData.append('numQuestions', Number.parseInt(numQuestions) || 5);
       formData.append('quizType', 'mcq');
-      formData.append('difficulty', 'medium');
+      formData.append('difficulty', difficulty);
       formData.append('language', 'en');
 
-      const response = await quizAPI.uploadAndGenerate(formData);
-
-      Alert.alert(t('upload:success'), t('upload:generateQuiz'), [
-        {
-          text: 'OK',
-          onPress: () => {
-            const quizId = response.data.data?.quiz?.id || response.data.data?.quiz?._id;
+      await quizAPI.streamUploadAndGenerate(formData, (event) => {
+        console.log('Stream event:', event);
+        
+        switch (event.event) {
+          case 'ready':
+            setStreamStatus('ready');
+            break;
+          
+          case 'extracting':
+            setStreamStatus('extracting');
+            break;
+          
+          case 'extracted':
+            setStreamStatus('extracted');
+            setTimeout(() => setStreamStatus('generating'), 500);
+            break;
+          
+          case 'meta':
+            setStreamStatus('generating');
+            setQuizMetadata({
+              title: event.data?.title,
+              category: event.data?.category,
+              description: event.data?.description
+            });
+            break;
+          
+          case 'question':
+            setStreamStatus('question');
+            setQuestionsGenerated(event.received || event.index + 1);
+            setCurrentQuestion(event.data);
+            break;
+          
+          case 'stream-complete':
+            setStreamStatus('saving');
+            break;
+          
+          case 'completed':
+            setStreamStatus('complete');
+            const quizId = event.data?.quiz?.id;
             if (quizId) {
-              navigation.navigate('QuizDetail', { id: quizId });
+              setGeneratedQuizId(quizId);
+              setTimeout(() => {
+                setIsStreaming(false);
+                navigation.navigate('QuizDetail', { id: quizId });
+              }, 1500);
             }
-          }
+            break;
+          
+          case 'error':
+            setIsStreaming(false);
+            Alert.alert('Error', event.message || 'Failed to generate quiz');
+            break;
         }
-      ]);
+      });
     } catch (error) {
       console.error('Upload and generate error:', error);
-      const serverMsg = error?.response?.data?.message;
-      const detailed = serverMsg || error?.message || 'Failed to generate quiz';
-      Alert.alert(t('common:appName'), detailed);
-    } finally {
-      setLoading(false);
+      setIsStreaming(false);
+      Alert.alert(t('common:appName'), error?.message || 'Failed to generate quiz');
     }
   };
 
   return (
-    <LinearGradient colors={['#F9FAFB', '#E5E7EB']} style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+    <>
+      {/* Streaming Modal */}
+      <Modal
+        visible={isStreaming}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        <StreamingQuizLoader
+          status={streamStatus}
+          questionsGenerated={questionsGenerated}
+          totalQuestions={Number.parseInt(numQuestions) || 5}
+          currentQuestion={currentQuestion}
+          metadata={quizMetadata}
+        />
+      </Modal>
+
+      <LinearGradient colors={['#F9FAFB', '#E5E7EB']} style={styles.container}>
+        <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.emoji}>🤖</Text>
           <Text style={styles.title}>{t('upload:generateQuiz')}</Text>
@@ -217,6 +317,35 @@ export default function UploadScreen({ navigation }) {
             editable={!loading}
           />
 
+          <Text style={styles.label}>Difficulty Level</Text>
+          <View style={styles.difficultySelector}>
+            {['easy', 'medium', 'hard'].map((level) => (
+              <TouchableOpacity
+                key={level}
+                style={[
+                  styles.difficultyButton,
+                  difficulty === level && styles.difficultyButtonActive,
+                  difficulty === level && level === 'easy' && { borderColor: '#10B981', backgroundColor: '#ECFDF5' },
+                  difficulty === level && level === 'medium' && { borderColor: '#F59E0B', backgroundColor: '#FEF3C7' },
+                  difficulty === level && level === 'hard' && { borderColor: '#EF4444', backgroundColor: '#FEE2E2' },
+                ]}
+                onPress={() => setDifficulty(level)}
+                disabled={loading}
+              >
+                <Text style={[
+                  styles.difficultyButtonText,
+                  difficulty === level && level === 'easy' && { color: '#10B981' },
+                  difficulty === level && level === 'medium' && { color: '#F59E0B' },
+                  difficulty === level && level === 'hard' && { color: '#EF4444' },
+                ]}>
+                  {level === 'easy' && '😊 Easy'}
+                  {level === 'medium' && '🎯 Medium'}
+                  {level === 'hard' && '🔥 Hard'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={generateFromText}
@@ -274,6 +403,45 @@ export default function UploadScreen({ navigation }) {
             </View>
           )}
 
+          <Text style={styles.label}>Number of Questions</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="5"
+            keyboardType="number-pad"
+            value={numQuestions}
+            onChangeText={setNumQuestions}
+            editable={!loading}
+          />
+
+          <Text style={styles.label}>Difficulty Level</Text>
+          <View style={styles.difficultySelector}>
+            {['easy', 'medium', 'hard'].map((level) => (
+              <TouchableOpacity
+                key={level}
+                style={[
+                  styles.difficultyButton,
+                  difficulty === level && styles.difficultyButtonActive,
+                  difficulty === level && level === 'easy' && { borderColor: '#10B981', backgroundColor: '#ECFDF5' },
+                  difficulty === level && level === 'medium' && { borderColor: '#F59E0B', backgroundColor: '#FEF3C7' },
+                  difficulty === level && level === 'hard' && { borderColor: '#EF4444', backgroundColor: '#FEE2E2' },
+                ]}
+                onPress={() => setDifficulty(level)}
+                disabled={loading}
+              >
+                <Text style={[
+                  styles.difficultyButtonText,
+                  difficulty === level && level === 'easy' && { color: '#10B981' },
+                  difficulty === level && level === 'medium' && { color: '#F59E0B' },
+                  difficulty === level && level === 'hard' && { color: '#EF4444' },
+                ]}>
+                  {level === 'easy' && '😊 Easy'}
+                  {level === 'medium' && '🎯 Medium'}
+                  {level === 'hard' && '🔥 Hard'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           <TouchableOpacity
             style={styles.uploadButton}
             onPress={pickDocument}
@@ -302,8 +470,9 @@ export default function UploadScreen({ navigation }) {
           )}
         </View>
         )}
-      </ScrollView>
-    </LinearGradient>
+        </ScrollView>
+      </LinearGradient>
+    </>
   );
 }
 
@@ -392,6 +561,29 @@ const styles = StyleSheet.create({
   fileName: { fontSize: 16, color: '#667eea', fontWeight: '600', marginBottom: 4 },
   fileSize: { fontSize: 14, color: '#9CA3AF', marginBottom: 8 },
   fileFeedback: { fontSize: 14, color: '#4F46E5', fontWeight: '500', textAlign: 'center' },
-  uploadButton: { backgroundColor: '#667eea', borderRadius: 12, padding: 16, alignItems: 'center' },
+  uploadButton: { backgroundColor: '#667eea', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 16 },
   uploadButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+  difficultySelector: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 20,
+  },
+  difficultyButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  difficultyButtonActive: {
+    borderWidth: 2,
+  },
+  difficultyButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
 });

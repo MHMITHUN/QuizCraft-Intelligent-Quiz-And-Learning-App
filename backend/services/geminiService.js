@@ -8,7 +8,7 @@ class GeminiService {
     this.model = genAI.getGenerativeModel({
       model: process.env.GEMINI_MODEL,
     });
-this.embeddingModel = genAI.getGenerativeModel({
+    this.embeddingModel = genAI.getGenerativeModel({
       model: 'text-embedding-004',
     });
   }
@@ -65,6 +65,74 @@ const result = await this.embeddingModel.embedContent({
     } catch (error) {
       console.error('Gemini API Error:', error);
       throw new Error('Failed to generate quiz from AI: ' + error.message);
+    }
+  }
+
+  /**
+   * Stream quiz as NDJSON events (meta, question, done)
+   * Each line will be a JSON object. Example lines:
+   * {"event":"meta","title":"...","description":"...","category":"..."}
+   * {"event":"question","index":1,"question":{"questionText":"...","type":"mcq",...}}
+   * {"event":"done"}
+   */
+  async streamQuizNDJSON(options, onEvent) {
+    const {
+      content,
+      numQuestions = 10,
+      quizType = 'mcq',
+      difficulty = 'medium',
+      language = 'en',
+      category = '',
+    } = options;
+
+    const streamingPrompt = this.buildStreamingPrompt(
+      content,
+      numQuestions,
+      quizType,
+      difficulty,
+      language,
+      category
+    );
+
+    try {
+      const result = await this.model.generateContentStream({ contents: [{ role: 'user', parts: [{ text: streamingPrompt }] }] });
+
+      let buffer = '';
+
+      for await (const item of result.stream) {
+        const chunkText = item.text();
+        if (!chunkText) continue;
+        buffer += chunkText;
+        // Process complete lines
+        let idx;
+        while ((idx = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, idx).trim();
+          buffer = buffer.slice(idx + 1);
+          if (!line) continue;
+          try {
+            const evt = JSON.parse(line);
+            if (typeof onEvent === 'function') onEvent(evt);
+          } catch (e) {
+            // If not valid JSON, skip (model might emit commentary). We only accept strict NDJSON lines.
+            continue;
+          }
+        }
+      }
+
+      // Flush last line if any
+      const last = buffer.trim();
+      if (last) {
+        try {
+          const evt = JSON.parse(last);
+          if (typeof onEvent === 'function') onEvent(evt);
+        } catch (_) { /* ignore */ }
+      }
+
+      // Ensure done event
+      if (typeof onEvent === 'function') onEvent({ event: 'done' });
+    } catch (error) {
+      console.error('Gemini streaming error:', error);
+      if (typeof onEvent === 'function') onEvent({ event: 'error', message: error.message || 'Streaming failed' });
     }
   }
 
@@ -136,6 +204,46 @@ IMPORTANT:
 - For true-false questions, use only two options: "True" and "False"
 - For short-answer questions, provide the expected answer in "correctAnswer" field
 - Ensure all JSON is properly formatted and escaped
+`;
+  }
+
+  /**
+   * Build streaming prompt instructing NDJSON output (one JSON per line)
+   */
+  buildStreamingPrompt(content, numQuestions, quizType, difficulty, language, category) {
+    const languageInstruction =
+      language === 'bn'
+        ? 'বাংলা ভাষায় তৈরি করো (Bengali).'
+        : 'English language.';
+
+    let typeInstruction = '';
+    if (quizType === 'mcq') {
+      typeInstruction = 'MCQ with 4 options, exactly one correct.';
+    } else if (quizType === 'true-false') {
+      typeInstruction = 'True/False only.';
+    } else if (quizType === 'short-answer') {
+      typeInstruction = 'Short text answer.';
+    }
+
+    const categoryInstruction = category ? `Category focus: ${category}.` : '';
+
+    return `You are an expert quiz generator. Stream output as NDJSON: emit exactly one valid JSON object per line with no extra text. Start with a META line, then ${numQuestions} QUESTION lines, then a DONE line. Do not wrap in code fences. Do not add commentary.
+
+SCHEMA per line:
+- META: {"event":"meta","title":"...","description":"...","category":"...","language":"${language}","difficulty":"${difficulty}","quizType":"${quizType}"}
+- QUESTION: {"event":"question","index": <1-based>, "question": {"questionText":"...","type":"${quizType}","options": [{"text":"...","isCorrect":true|false}], "correctAnswer":"...","explanation":"...","difficulty":"easy|medium|hard","points":1}}
+- DONE: {"event":"done"}
+
+REQUIREMENTS:
+- Generate exactly ${numQuestions} questions.
+- ${languageInstruction}
+- ${typeInstruction}
+- ${categoryInstruction}
+- Provide detailed explanations and correctAnswer.
+- For true-false use only options True/False.
+
+CONTENT:
+${content}
 `;
   }
 

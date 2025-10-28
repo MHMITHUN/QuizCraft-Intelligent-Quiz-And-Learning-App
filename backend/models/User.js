@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -15,6 +16,22 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email']
   },
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailVerifiedAt: Date,
+  emailVerificationToken: String,
+  emailVerificationExpires: Date,
+  emailVerificationSentAt: Date,
+  // 6-digit OTP for email verification
+  emailVerificationCode: String,
+  emailVerificationCodeExpires: Date,
+  passwordResetToken: String,
+  passwordResetExpires: Date,
+  // 6-digit OTP for password reset
+  passwordResetCode: String,
+  passwordResetCodeExpires: Date,
   password: {
     type: String,
     required: [true, 'Please provide a password'],
@@ -103,7 +120,7 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Hash password before saving
+// Hash password before saving to keep credentials secure
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {
     return next();
@@ -113,23 +130,71 @@ userSchema.pre('save', async function(next) {
   next();
 });
 
-// Method to compare password
+// Compare raw password with hashed version stored in DB
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Method to check if user has reached quiz limit
+// Generate and persist a short-lived, hashed email verification token
+userSchema.methods.generateEmailVerificationToken = function() {
+  const verificationToken = crypto.randomBytes(32).toString('hex');
+  this.emailVerificationToken = crypto
+    .createHash('sha256')
+    .update(verificationToken)
+    .digest('hex');
+  this.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+  this.emailVerificationSentAt = new Date();
+  return verificationToken;
+};
+
+// Generate 6-digit numeric code for email verification
+userSchema.methods.generateEmailVerificationCode = function() {
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  this.emailVerificationCode = code;
+  this.emailVerificationCodeExpires = Date.now() + 15 * 60 * 1000; // 15 minutes
+  this.emailVerificationSentAt = new Date();
+  return code;
+};
+
+// Mark account as verified in a single place to keep logic consistent
+userSchema.methods.markEmailVerified = function() {
+  this.isEmailVerified = true;
+  this.emailVerifiedAt = new Date();
+  this.emailVerificationToken = undefined;
+  this.emailVerificationExpires = undefined;
+  this.emailVerificationSentAt = undefined;
+  this.emailVerificationCode = undefined;
+  this.emailVerificationCodeExpires = undefined;
+};
+
+// Generate and persist hashed token for password reset flow
+userSchema.methods.generatePasswordResetToken = function() {
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  this.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+  this.passwordResetExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+  return resetToken;
+};
+
+// Generate 6-digit code for password reset
+userSchema.methods.generatePasswordResetCode = function() {
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  this.passwordResetCode = code;
+  this.passwordResetCodeExpires = Date.now() + 15 * 60 * 1000; // 15 minutes
+  return code;
+};
+
+// Check if user can still generate quizzes based on plan limits
 userSchema.methods.canGenerateQuiz = function() {
   if (this.role === 'admin') return true;
-  
-  const limit = this.subscription.plan === 'free' 
-    ? parseInt(process.env.FREE_QUIZ_LIMIT) 
+
+  const limit = this.subscription.plan === 'free'
+    ? parseInt(process.env.FREE_QUIZ_LIMIT)
     : parseInt(process.env.PREMIUM_QUIZ_LIMIT);
-  
+
   return this.usage.quizzesGenerated < limit;
 };
 
-// Method to increment usage
+// Increment usage counters and persist in DB
 userSchema.methods.incrementUsage = async function(type) {
   if (type === 'generated') {
     this.usage.quizzesGenerated += 1;

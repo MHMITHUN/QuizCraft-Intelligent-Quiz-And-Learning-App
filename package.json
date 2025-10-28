@@ -10,5 +10,9 @@
     "backend": "cd backend && npm run dev",
     "install-all": "cd frontend && npm install && cd ../backend && npm install"
   },
-  "description": "QuizCraft AI-Powered Quiz Platform - Root Scripts"
+  "description": "QuizCraft AI-Powered Quiz Platform - Root Scripts",
+  "dependencies": {
+    "expo": "^54.0.19",
+    "react-native": "^0.81.5"
+  }
 }
