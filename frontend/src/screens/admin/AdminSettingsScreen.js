@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { adminAPI } from '../../services/api';
 import Toast from '../../components/Toast';
+import { useTheme } from '../../hooks/useTheme';
 
 export default function AdminSettingsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
@@ -54,6 +55,7 @@ export default function AdminSettingsScreen({ navigation }) {
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-20)).current;
+  const { theme } = useTheme();
 
   useEffect(() => {
     loadSettings();
@@ -209,18 +211,18 @@ export default function AdminSettingsScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
         <ActivityIndicator size="large" color="#4F46E5" />
-        <Text style={styles.loadingText}>Loading admin settings...</Text>
+        <Text style={[styles.loadingText, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>Loading admin settings...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
       {/* Header */}
       <LinearGradient
-        colors={['#4F46E5', '#7C3AED', '#EC4899']}
+        colors={theme === 'light' ? ['#4F46E5', '#7C3AED', '#EC4899'] : ['#222','#555']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -262,33 +264,35 @@ export default function AdminSettingsScreen({ navigation }) {
         >
           <View style={styles.sectionHeader}>
             <Ionicons name="settings-outline" size={24} color="#4F46E5" />
-            <Text style={styles.sectionTitle}>API Usage Limits</Text>
+            <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>API Usage Limits</Text>
           </View>
           
           {Object.entries(settings.apiLimits).map(([plan, limits]) => (
-            <View key={plan} style={styles.limitCard}>
-              <Text style={styles.limitCardTitle}>
+            <View key={plan} style={[styles.limitCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
+              <Text style={[styles.limitCardTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>
                 {plan.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
               </Text>
               
               <View style={styles.limitRow}>
-                <Text style={styles.limitLabel}>Monthly Quizzes:</Text>
+                <Text style={[styles.limitLabel, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>Monthly Quizzes:</Text>
                 <TextInput
-                  style={styles.limitInput}
+                  style={[styles.limitInput, { backgroundColor: theme === 'light' ? 'white' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' }]}
                   value={limits.quizzes === -1 ? 'Unlimited' : String(limits.quizzes)}
                   onChangeText={(value) => updateApiLimit(plan, 'quizzes', value)}
                   placeholder="0 or Unlimited"
+                  placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
                   keyboardType="numeric"
                 />
               </View>
               
               <View style={styles.limitRow}>
-                <Text style={styles.limitLabel}>Monthly Questions:</Text>
+                <Text style={[styles.limitLabel, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>Monthly Questions:</Text>
                 <TextInput
-                  style={styles.limitInput}
+                  style={[styles.limitInput, { backgroundColor: theme === 'light' ? 'white' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' }]}
                   value={limits.questions === -1 ? 'Unlimited' : String(limits.questions)}
                   onChangeText={(value) => updateApiLimit(plan, 'questions', value)}
                   placeholder="0 or Unlimited"
+                  placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
                   keyboardType="numeric"
                 />
               </View>
@@ -305,16 +309,16 @@ export default function AdminSettingsScreen({ navigation }) {
         >
           <View style={styles.sectionHeader}>
             <Ionicons name="toggle-outline" size={24} color="#10B981" />
-            <Text style={styles.sectionTitle}>System Features</Text>
+            <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>System Features</Text>
           </View>
           
           {Object.entries(settings.features).map(([feature, enabled]) => (
-            <View key={feature} style={styles.featureRow}>
+            <View key={feature} style={[styles.featureRow, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
               <View style={styles.featureInfo}>
-                <Text style={styles.featureName}>
+                <Text style={[styles.featureName, { color: theme === 'light' ? '#1e293b' : 'white' }]}>
                   {feature.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                 </Text>
-                <Text style={styles.featureDescription}>
+                <Text style={[styles.featureDescription, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>
                   {getFeatureDescription(feature)}
                 </Text>
               </View>
@@ -337,7 +341,7 @@ export default function AdminSettingsScreen({ navigation }) {
         >
           <View style={styles.sectionHeader}>
             <Ionicons name="cube-outline" size={24} color="#F59E0B" />
-            <Text style={styles.sectionTitle}>Subscription Packages</Text>
+            <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>Subscription Packages</Text>
             <TouchableOpacity
               style={styles.addButton}
               onPress={() => openPackageModal()}
@@ -347,11 +351,11 @@ export default function AdminSettingsScreen({ navigation }) {
           </View>
           
           {packages.map((pkg, index) => (
-            <View key={pkg.id} style={[styles.packageCard, { borderLeftColor: pkg.color }]}>
+            <View key={pkg.id} style={[styles.packageCard, { borderLeftColor: pkg.color, backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
               <View style={styles.packageHeader}>
                 <View>
-                  <Text style={styles.packageName}>{pkg.name}</Text>
-                  <Text style={styles.packageRole}>{pkg.role} • ৳{pkg.price.monthly}/month</Text>
+                  <Text style={[styles.packageName, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{pkg.name}</Text>
+                  <Text style={[styles.packageRole, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>{pkg.role} • ৳{pkg.price.monthly}/month</Text>
                 </View>
                 <View style={styles.packageActions}>
                   {pkg.popular && (
@@ -374,7 +378,7 @@ export default function AdminSettingsScreen({ navigation }) {
                 </View>
               </View>
               
-              <Text style={styles.packageFeatures}>
+              <Text style={[styles.packageFeatures, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>
                 {pkg.features.length} features • {pkg.active ? 'Active' : 'Inactive'}
               </Text>
             </View>
@@ -388,12 +392,12 @@ export default function AdminSettingsScreen({ navigation }) {
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
+        <View style={[styles.modalContainer, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
+          <View style={[styles.modalHeader, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderBottomColor: theme === 'light' ? '#e2e8f0' : '#272727' }]}>
             <TouchableOpacity onPress={() => setShowPackageModal(false)}>
-              <Ionicons name="close" size={24} color="#374151" />
+              <Ionicons name="close" size={24} color={theme === 'light' ? '#374151' : 'white'} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>
+            <Text style={[styles.modalTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>
               {editingPackage ? 'Edit Package' : 'Create Package'}
             </Text>
             <TouchableOpacity onPress={savePackage}>
@@ -403,39 +407,42 @@ export default function AdminSettingsScreen({ navigation }) {
           
           <ScrollView style={styles.modalContent}>
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Package Name</Text>
+              <Text style={[styles.formLabel, { color: theme === 'light' ? '#374151' : 'white' }]}>Package Name</Text>
               <TextInput
-                style={styles.formInput}
+                style={[styles.formInput, { backgroundColor: theme === 'light' ? 'white' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' }]}
                 value={packageForm.name}
                 onChangeText={(text) => setPackageForm(prev => ({ ...prev, name: text }))}
                 placeholder="Enter package name"
+                placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
               />
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Bengali Name</Text>
+              <Text style={[styles.formLabel, { color: theme === 'light' ? '#374151' : 'white' }]}>Bengali Name</Text>
               <TextInput
-                style={styles.formInput}
+                style={[styles.formInput, { backgroundColor: theme === 'light' ? 'white' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' }]}
                 value={packageForm.namebn}
                 onChangeText={(text) => setPackageForm(prev => ({ ...prev, namebn: text }))}
                 placeholder="বাংলা নাম লিখুন"
+                placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
               />
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Role</Text>
-              <View style={styles.roleSelector}>
+              <Text style={[styles.formLabel, { color: theme === 'light' ? '#374151' : 'white' }]}>Role</Text>
+              <View style={[styles.roleSelector, { backgroundColor: theme === 'light' ? '#e2e8f0' : '#272727' }]}>
                 {['student', 'teacher'].map(role => (
                   <TouchableOpacity
                     key={role}
                     style={[
                       styles.roleOption,
-                      packageForm.role === role && styles.roleOptionActive
+                      packageForm.role === role && (theme === 'light' ? styles.roleOptionActive : styles.roleOptionActiveDark)
                     ]}
                     onPress={() => setPackageForm(prev => ({ ...prev, role }))}
                   >
                     <Text style={[
                       styles.roleOptionText,
+                      { color: theme === 'light' ? '#64748b' : '#9CA3AF' },
                       packageForm.role === role && styles.roleOptionTextActive
                     ]}>
                       {role.charAt(0).toUpperCase() + role.slice(1)}
@@ -447,29 +454,31 @@ export default function AdminSettingsScreen({ navigation }) {
             
             <View style={styles.priceRow}>
               <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
-                <Text style={styles.formLabel}>Monthly Price (৳)</Text>
+                <Text style={[styles.formLabel, { color: theme === 'light' ? '#374151' : 'white' }]}>Monthly Price (৳)</Text>
                 <TextInput
-                  style={styles.formInput}
+                  style={[styles.formInput, { backgroundColor: theme === 'light' ? 'white' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' }]}
                   value={String(packageForm.price.monthly)}
                   onChangeText={(text) => setPackageForm(prev => ({
                     ...prev,
                     price: { ...prev.price, monthly: parseInt(text) || 0 }
                   }))}
                   placeholder="0"
+                  placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
                   keyboardType="numeric"
                 />
               </View>
               
               <View style={[styles.formGroup, { flex: 1, marginLeft: 10 }]}>
-                <Text style={styles.formLabel}>Yearly Price (৳)</Text>
+                <Text style={[styles.formLabel, { color: theme === 'light' ? '#374151' : 'white' }]}>Yearly Price (৳)</Text>
                 <TextInput
-                  style={styles.formInput}
+                  style={[styles.formInput, { backgroundColor: theme === 'light' ? 'white' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' }]}
                   value={String(packageForm.price.yearly)}
                   onChangeText={(text) => setPackageForm(prev => ({
                     ...prev,
                     price: { ...prev.price, yearly: parseInt(text) || 0 }
                   }))}
                   placeholder="0"
+                  placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
                   keyboardType="numeric"
                 />
               </View>
@@ -477,7 +486,7 @@ export default function AdminSettingsScreen({ navigation }) {
             
             <View style={styles.formGroup}>
               <View style={styles.featuresHeader}>
-                <Text style={styles.formLabel}>Features</Text>
+                <Text style={[styles.formLabel, { color: theme === 'light' ? '#374151' : 'white' }]}>Features</Text>
                 <TouchableOpacity
                   style={styles.addFeatureButton}
                   onPress={addFeatureToPackage}
@@ -488,8 +497,8 @@ export default function AdminSettingsScreen({ navigation }) {
               </View>
               
               {packageForm.features.map((feature, index) => (
-                <View key={index} style={styles.featureItem}>
-                  <Text style={styles.featureItemText}>{feature}</Text>
+                <View key={index} style={[styles.featureItem, { backgroundColor: theme === 'light' ? 'white' : '#272727', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' }]}>
+                  <Text style={[styles.featureItemText, { color: theme === 'light' ? '#374151' : 'white' }]}>{feature}</Text>
                   <TouchableOpacity onPress={() => removeFeatureFromPackage(index)}>
                     <Ionicons name="close-circle" size={20} color="#EF4444" />
                   </TouchableOpacity>
@@ -498,7 +507,7 @@ export default function AdminSettingsScreen({ navigation }) {
             </View>
             
             <View style={styles.switchRow}>
-              <Text style={styles.formLabel}>Mark as Popular</Text>
+              <Text style={[styles.formLabel, { color: theme === 'light' ? '#374151' : 'white' }]}>Mark as Popular</Text>
               <Switch
                 value={packageForm.popular}
                 onValueChange={(value) => setPackageForm(prev => ({ ...prev, popular: value }))}
@@ -507,7 +516,7 @@ export default function AdminSettingsScreen({ navigation }) {
             </View>
             
             <View style={styles.switchRow}>
-              <Text style={styles.formLabel}>Active</Text>
+              <Text style={[styles.formLabel, { color: theme === 'light' ? '#374151' : 'white' }]}>Active</Text>
               <Switch
                 value={packageForm.active}
                 onValueChange={(value) => setPackageForm(prev => ({ ...prev, active: value }))}
@@ -797,6 +806,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+  },
+  roleOptionActiveDark: {
+    backgroundColor: '#4F46E5',
   },
   roleOptionText: {
     fontSize: 14,

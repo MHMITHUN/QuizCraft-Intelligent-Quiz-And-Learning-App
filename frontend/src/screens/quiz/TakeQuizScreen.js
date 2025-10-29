@@ -9,6 +9,7 @@ import LoadingIndicator from '../../components/quiz/LoadingIndicator';
 import useAntiPlagiarism from '../../hooks/useAntiPlagiarism';
 import AntiPlagiarismWarning from '../../components/quiz/AntiPlagiarismWarning';
 import ViolationBadge from '../../components/quiz/ViolationBadge';
+import { useTheme } from '../../hooks/useTheme';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -24,6 +25,7 @@ export default function TakeQuizScreen({ route, navigation }) {
   const [scaleAnim] = useState(new Animated.Value(0.9));
   const [progressAnim] = useState(new Animated.Value(0));
   const startTimeRef = useRef(Date.now());
+  const { theme } = useTheme();
 
   // Anti-plagiarism configuration
   const PROCTORING_ENABLED = true; // Set to false to disable
@@ -229,7 +231,7 @@ export default function TakeQuizScreen({ route, navigation }) {
     const selectedAnswer = answers[index];
 
     return (
-      <View key={index} style={styles.questionCard}>
+      <View key={index} style={[styles.questionCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
         <View style={styles.questionHeader}>
           <View style={styles.questionNumber}>
             <Text style={styles.questionNumberText}>{index + 1}</Text>
@@ -243,7 +245,7 @@ export default function TakeQuizScreen({ route, navigation }) {
           </View>
         </View>
         
-        <Text style={styles.questionText}>{item.questionText}</Text>
+        <Text style={[styles.questionText, { color: theme === 'light' ? '#111827' : 'white' }]}>{item.questionText}</Text>
         
         <View style={styles.optionsContainer}>
           {Array.isArray(item.options) && item.options.map((opt, i) => {
@@ -253,7 +255,8 @@ export default function TakeQuizScreen({ route, navigation }) {
                 key={i}
                 style={[
                   styles.optionCard,
-                  isSelected && styles.optionCardSelected,
+                  { backgroundColor: theme === 'light' ? '#FAFAFA' : '#272727', borderColor: theme === 'light' ? '#E5E7EB' : '#374151' },
+                  isSelected && (theme === 'light' ? styles.optionCardSelected : styles.optionCardSelectedDark),
                   Platform.OS === 'web' && styles.webOption,
                   isMaxViolationsReached && styles.optionCardDisabled
                 ]}
@@ -264,13 +267,15 @@ export default function TakeQuizScreen({ route, navigation }) {
                 <View style={styles.optionContent}>
                   <View style={[
                     styles.optionCircle,
-                    isSelected && styles.optionCircleSelected
+                    { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderColor: theme === 'light' ? '#D1D5DB' : '#374151' },
+                    isSelected && (theme === 'light' ? styles.optionCircleSelected : styles.optionCircleSelectedDark)
                   ]}>
                     {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
                   </View>
                   <Text style={[
                     styles.optionText,
-                    isSelected && styles.optionTextSelected
+                    { color: theme === 'light' ? '#374151' : 'white' },
+                    isSelected && (theme === 'light' ? styles.optionTextSelected : styles.optionTextSelectedDark)
                   ]}>
                     {opt.text}
                   </Text>
@@ -289,7 +294,7 @@ export default function TakeQuizScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: theme === 'light' ? '#F8FAFC' : '#121212' }]}>
         <LoadingIndicator 
           message="Loading Quiz..." 
           type="quiz" 
@@ -300,7 +305,7 @@ export default function TakeQuizScreen({ route, navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme === 'light' ? '#F8FAFC' : '#121212' }]}>
       {/* Anti-Plagiarism Warning Modal */}
       {PROCTORING_ENABLED && (
         <AntiPlagiarismWarning
@@ -314,18 +319,18 @@ export default function TakeQuizScreen({ route, navigation }) {
       )}
 
       {/* Header with progress */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderBottomColor: theme === 'light' ? '#E5E7EB' : '#272727' }]}>
         <TouchableOpacity 
-          style={[styles.backButton, isMaxViolationsReached && styles.backButtonDisabled]} 
+          style={[styles.backButton, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }, isMaxViolationsReached && styles.backButtonDisabled]} 
           onPress={() => !isMaxViolationsReached && navigation.goBack()}
           disabled={isMaxViolationsReached}
         >
-          <Ionicons name="arrow-back" size={24} color={isMaxViolationsReached ? "#9CA3AF" : "#374151"} />
+          <Ionicons name="arrow-back" size={24} color={isMaxViolationsReached ? "#9CA3AF" : (theme === 'light' ? '#374151' : 'white')} />
         </TouchableOpacity>
         
         <View style={styles.headerContent}>
           <View style={styles.titleRow}>
-            <Text style={styles.title} numberOfLines={1}>{quiz?.title}</Text>
+            <Text style={[styles.title, { color: theme === 'light' ? '#111827' : 'white' }]} numberOfLines={1}>{quiz?.title}</Text>
             {PROCTORING_ENABLED && (
               <ViolationBadge 
                 violationCount={violationCount} 
@@ -378,7 +383,7 @@ export default function TakeQuizScreen({ route, navigation }) {
             />
             
             {answeredCount < totalCount && (
-              <Text style={styles.submitHint}>
+              <Text style={[styles.submitHint, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>
                 Answer {totalCount - answeredCount} more question{totalCount - answeredCount !== 1 ? 's' : ''} to submit
               </Text>
             )}
@@ -389,17 +394,17 @@ export default function TakeQuizScreen({ route, navigation }) {
       {/* Submitting Overlay */}
       {(submitting || isMaxViolationsReached) && (
         <View style={styles.submittingOverlay}>
-          <View style={styles.submittingContent}>
+          <View style={[styles.submittingContent, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
             {isMaxViolationsReached ? (
               <>
                 <View style={styles.warningIconContainer}>
                   <Ionicons name="shield-checkmark-outline" size={64} color="#DC2626" />
                 </View>
                 <Text style={styles.submittingTitle}>Maximum Violations Reached</Text>
-                <Text style={styles.submittingSubtitle}>
+                <Text style={[styles.submittingSubtitle, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>
                   Your quiz is being submitted automatically due to integrity violations.
                 </Text>
-                <View style={styles.loadingContainer}>
+                <View style={[styles.loadingContainer, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
                   <ActivityIndicator size="small" color="#DC2626" />
                   <Text style={styles.loadingText}>Submitting...</Text>
                 </View>
@@ -407,7 +412,7 @@ export default function TakeQuizScreen({ route, navigation }) {
             ) : (
               <>
                 <ActivityIndicator size="large" color="#4F46E5" />
-                <Text style={styles.submittingText}>Submitting quiz...</Text>
+                <Text style={[styles.submittingText, { color: theme === 'light' ? '#111827' : 'white' }]}>Submitting quiz...</Text>
               </>
             )}
           </View>
@@ -576,6 +581,10 @@ const styles = StyleSheet.create({
     borderColor: '#4F46E5',
     backgroundColor: '#F0F0FF',
   },
+  optionCardSelectedDark: {
+    borderColor: '#4F46E5',
+    backgroundColor: '#4F46E520',
+  },
   optionCardDisabled: {
     opacity: 0.5,
     backgroundColor: '#F3F4F6',
@@ -608,6 +617,10 @@ const styles = StyleSheet.create({
     borderColor: '#4F46E5',
     backgroundColor: '#4F46E5',
   },
+  optionCircleSelectedDark: {
+    borderColor: '#4F46E5',
+    backgroundColor: '#4F46E5',
+  },
   optionText: {
     flex: 1,
     fontSize: 16,
@@ -616,6 +629,10 @@ const styles = StyleSheet.create({
   },
   optionTextSelected: {
     color: '#1F2937',
+    fontWeight: '600',
+  },
+  optionTextSelectedDark: {
+    color: 'white',
     fontWeight: '600',
   },
   submitSection: {

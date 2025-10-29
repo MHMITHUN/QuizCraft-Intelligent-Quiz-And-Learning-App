@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { subscriptionsAPI, paymentsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useI18n } from '../../i18n';
+import { useTheme } from '../../hooks/useTheme';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -27,6 +28,7 @@ export default function SubscriptionScreen({ navigation }) {
   const [requesting, setRequesting] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [billingCycle, setBillingCycle] = useState('monthly');
+  const { theme } = useTheme();
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-20)).current;
@@ -257,6 +259,7 @@ export default function SubscriptionScreen({ navigation }) {
         key={plan.id}
         style={[
           styles.planCard,
+          { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' },
           plan.popular && styles.popularCard,
           isCurrentPlan && styles.currentPlanCard,
           { transform: [{ translateY: slideAnim }], opacity: fadeAnim }
@@ -269,14 +272,14 @@ export default function SubscriptionScreen({ navigation }) {
         )}
         
         <View style={styles.planHeader}>
-          <Text style={styles.planName}>{plan.name}</Text>
-          <Text style={styles.planNameBn}>{plan.namebn}</Text>
+          <Text style={[styles.planName, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{plan.name}</Text>
+          <Text style={[styles.planNameBn, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>{plan.namebn}</Text>
           
           <View style={styles.priceContainer}>
             <Text style={[styles.price, { color: plan.color }]}>
               {formatPrice(plan.price[billingCycle])}
             </Text>
-            <Text style={styles.pricePeriod}>/{billingCycle === 'monthly' ? 'month' : 'year'}</Text>
+            <Text style={[styles.pricePeriod, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>/{billingCycle === 'monthly' ? 'month' : 'year'}</Text>
           </View>
           
           {billingCycle === 'yearly' && (
@@ -290,7 +293,7 @@ export default function SubscriptionScreen({ navigation }) {
           {plan.features.map((feature, idx) => (
             <View key={idx} style={styles.featureItem}>
               <Ionicons name="checkmark-circle" size={16} color={plan.color} />
-              <Text style={styles.featureText}>{feature}</Text>
+              <Text style={[styles.featureText, { color: theme === 'light' ? '#374151' : 'white' }]}>{feature}</Text>
             </View>
           ))}
         </View>
@@ -319,9 +322,9 @@ export default function SubscriptionScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
         <ActivityIndicator size="large" color="#4F46E5" />
-        <Text style={styles.loadingText}>Loading subscription plans...</Text>
+        <Text style={[styles.loadingText, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>Loading subscription plans...</Text>
       </View>
     );
   }
@@ -329,9 +332,9 @@ export default function SubscriptionScreen({ navigation }) {
   const plansToShow = getPlansForUser();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
       <LinearGradient
-        colors={['#4F46E5', '#7C3AED', '#EC4899']}
+        colors={theme === 'light' ? ['#4F46E5', '#7C3AED', '#EC4899'] : ['#222','#555']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -356,29 +359,31 @@ export default function SubscriptionScreen({ navigation }) {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Billing Cycle Toggle */}
         <View style={styles.billingToggleContainer}>
-          <Text style={styles.billingToggleLabel}>Billing Cycle</Text>
-          <View style={styles.billingToggle}>
+          <Text style={[styles.billingToggleLabel, { color: theme === 'light' ? '#1e293b' : 'white' }]}>Billing Cycle</Text>
+          <View style={[styles.billingToggle, { backgroundColor: theme === 'light' ? '#e2e8f0' : '#272727' }]}>
             <TouchableOpacity
               style={[
                 styles.billingOption,
-                billingCycle === 'monthly' && styles.billingOptionActive
+                billingCycle === 'monthly' && (theme === 'light' ? styles.billingOptionActive : styles.billingOptionActiveDark)
               ]}
               onPress={() => setBillingCycle('monthly')}
             >
               <Text style={[
                 styles.billingOptionText,
+                { color: theme === 'light' ? '#64748b' : '#9CA3AF' },
                 billingCycle === 'monthly' && styles.billingOptionTextActive
               ]}>Monthly</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.billingOption,
-                billingCycle === 'yearly' && styles.billingOptionActive
+                billingCycle === 'yearly' && (theme === 'light' ? styles.billingOptionActive : styles.billingOptionActiveDark)
               ]}
               onPress={() => setBillingCycle('yearly')}
             >
               <Text style={[
                 styles.billingOptionText,
+                { color: theme === 'light' ? '#64748b' : '#9CA3AF' },
                 billingCycle === 'yearly' && styles.billingOptionTextActive
               ]}>Yearly</Text>
               <View style={styles.saveBadge}>
@@ -395,26 +400,26 @@ export default function SubscriptionScreen({ navigation }) {
 
         {/* Footer Info */}
         <View style={styles.footerInfo}>
-          <View style={styles.infoCard}>
+          <View style={[styles.infoCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
             <Ionicons name="shield-checkmark" size={24} color="#10B981" />
-            <Text style={styles.infoTitle}>Admin Approval Required</Text>
-            <Text style={styles.infoDescription}>
+            <Text style={[styles.infoTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>Admin Approval Required</Text>
+            <Text style={[styles.infoDescription, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>
               All subscription requests require admin approval. You'll receive payment instructions via email once approved.
             </Text>
           </View>
           
-          <View style={styles.infoCard}>
+          <View style={[styles.infoCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
             <Ionicons name="card" size={24} color="#F59E0B" />
-            <Text style={styles.infoTitle}>Payment Methods</Text>
-            <Text style={styles.infoDescription}>
+            <Text style={[styles.infoTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>Payment Methods</Text>
+            <Text style={[styles.infoDescription, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>
               We accept bank transfers, bKash, Nagad, and other mobile banking services popular in Bangladesh.
             </Text>
           </View>
           
-          <View style={styles.infoCard}>
+          <View style={[styles.infoCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
             <Ionicons name="headset" size={24} color="#8B5CF6" />
-            <Text style={styles.infoTitle}>Need Help?</Text>
-            <Text style={styles.infoDescription}>
+            <Text style={[styles.infoTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>Need Help?</Text>
+            <Text style={[styles.infoDescription, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>
               Contact our support team for assistance with plan selection or payment processes.
             </Text>
           </View>
@@ -511,6 +516,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  billingOptionActiveDark: {
+    backgroundColor: '#4F46E5',
   },
   billingOptionText: {
     fontSize: 14,

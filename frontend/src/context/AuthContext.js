@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI } from '../services/api';
 
@@ -10,6 +10,9 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const guestTrialTimerRef = useRef(null);
+  const guestTrialIntervalRef = useRef(null);
+  const [guestTrialRemaining, setGuestTrialRemaining] = useState(null);
 
   // Load user from storage on app start
   useEffect(() => {
@@ -26,6 +29,9 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.error('Load user error:', err);
       await AsyncStorage.removeItem('token');
+      if (err?.message) {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -33,9 +39,25 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      console.log('[AuthContext] Login started for:', email);
       setLoading(true);
       setError(null);
+      
       const response = await authAPI.login(email, password);
+      console.log('[AuthContext] Login response:', JSON.stringify(response.data, null, 2));
+      
+      // Check if admin 2FA is required
+      if (response.data.requiresAdminVerification) {
+        console.log('[AuthContext] Admin 2FA detected');
+        setLoading(false);
+        return { 
+          success: true, 
+          requiresAdminVerification: true,
+          email: response.data.data.email,
+          codeExpiresAt: response.data.data.codeExpiresAt,
+          message: response.data.message
+        };
+      }
       
       const { user, token } = response.data.data;
       if (token) {
@@ -48,6 +70,28 @@ export const AuthProvider = ({ children }) => {
       return { success: true };
     } catch (err) {
       const errorMsg = err.message || 'Login failed';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyAdminLogin = async (email, code) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await authAPI.verifyAdminLogin(email, code);
+      
+      const { user, token } = response.data.data;
+      if (token) {
+        await AsyncStorage.setItem('token', String(token));
+      }
+      setUser(user);
+      
+      return { success: true };
+    } catch (err) {
+      const errorMsg = err.message || 'Verification failed';
       setError(errorMsg);
       return { success: false, error: errorMsg };
     } finally {
@@ -85,14 +129,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = async () => {
+  const logout = useCallback(async (message) => {
     try {
       await AsyncStorage.removeItem('token');
       setUser(null);
+      setGuestTrialRemaining(null);
+      setError(message || null);
     } catch (err) {
       console.error('Logout error:', err);
     }
-  };
+  }, []);
 
   const guestAccess = async () => {
     try {
@@ -115,6 +161,66 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  useEffect(() => {
+    const clearExistingTimers = () => {
+      if (guestTrialTimerRef.current) {
+        clearTimeout(guestTrialTimerRef.current);
+        guestTrialTimerRef.current = null;
+      }
+      if (guestTrialIntervalRef.current) {
+        clearInterval(guestTrialIntervalRef.current);
+        guestTrialIntervalRef.current = null;
+      }
+      setGuestTrialRemaining(null);
+    };
+
+    const scheduleGuestExpiry = () => {
+      if (user?.role !== 'guest' || !user?.guestTrialExpiresAt) {
+        setGuestTrialRemaining(null);
+        return;
+      }
+
+      const expiresAt = new Date(user.guestTrialExpiresAt).getTime();
+      if (!Number.isFinite(expiresAt)) {
+        setGuestTrialRemaining(null);
+        return;
+      }
+
+      const finishSession = () => {
+        clearExistingTimers();
+        logout('Your guest trial has ended. Please create an account to continue.')
+          .catch((err) => console.error('Guest trial logout error:', err));
+      };
+
+      const tick = () => {
+        const remaining = expiresAt - Date.now();
+        if (remaining <= 0) {
+          finishSession();
+        } else {
+          setGuestTrialRemaining(remaining);
+        }
+      };
+
+      tick();
+
+      guestTrialIntervalRef.current = setInterval(tick, 1000);
+
+      const totalMs = expiresAt - Date.now();
+      if (totalMs > 0) {
+        guestTrialTimerRef.current = setTimeout(finishSession, totalMs);
+      } else {
+        finishSession();
+      }
+    };
+
+    clearExistingTimers();
+    scheduleGuestExpiry();
+
+    return () => {
+      clearExistingTimers();
+    };
+  }, [user, logout]);
+
   const updateProfile = async (data) => {
     try {
       const response = await authAPI.updateProfile(data);
@@ -135,6 +241,8 @@ export const AuthProvider = ({ children }) => {
     guestAccess,
     updateProfile,
     refreshUser: loadUser,
+    guestTrialRemaining,
+    verifyAdminLogin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

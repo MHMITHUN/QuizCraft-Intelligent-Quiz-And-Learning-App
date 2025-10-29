@@ -142,8 +142,8 @@ const result = await this.embeddingModel.embedContent({
   buildPrompt(content, numQuestions, quizType, difficulty, language, category) {
     const languageInstruction =
       language === 'bn'
-        ? 'Generate the quiz in Bengali language (বাংলা ভাষায়).'
-        : 'Generate the quiz in English language.';
+        ? 'Generate the quiz in Bengali/Bangla language (বাংলা ভাষায়). All questions, options, explanations, title, and description MUST be in Bengali script (বাংলা).'
+        : 'Generate the quiz in English language. All questions, options, explanations, title, and description MUST be in English.';
 
     let typeInstruction = '';
     if (quizType === 'mcq') {
@@ -170,6 +170,7 @@ REQUIREMENTS:
 - Question type: ${quizType}
 - Difficulty level: ${difficulty}
 - ${languageInstruction}
+- The quiz language MUST match the language of the provided content
 - ${typeInstruction}
 - ${categoryInstruction}
 - Include detailed explanations for each correct answer
@@ -213,8 +214,8 @@ IMPORTANT:
   buildStreamingPrompt(content, numQuestions, quizType, difficulty, language, category) {
     const languageInstruction =
       language === 'bn'
-        ? 'বাংলা ভাষায় তৈরি করো (Bengali).'
-        : 'English language.';
+        ? 'বাংলা ভাষায় তৈরি করো (Bengali/Bangla). ALL content MUST be in Bengali script (বাংলা).'
+        : 'English language. ALL content MUST be in English.';
 
     let typeInstruction = '';
     if (quizType === 'mcq') {
@@ -237,6 +238,7 @@ SCHEMA per line:
 REQUIREMENTS:
 - Generate exactly ${numQuestions} questions.
 - ${languageInstruction}
+- The quiz language MUST match the language of the provided content.
 - ${typeInstruction}
 - ${categoryInstruction}
 - Provide detailed explanations and correctAnswer.

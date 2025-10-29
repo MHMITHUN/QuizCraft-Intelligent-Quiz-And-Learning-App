@@ -6,12 +6,15 @@ import { useI18n } from '../../i18n';
 import { Ionicons } from '@expo/vector-icons';
 import { useRolePermissions } from '../../components/RoleGuard';
 import { authAPI } from '../../services/api';
+import ThemeToggle from '../../components/ThemeToggle';
+import { useTheme } from '../../hooks/useTheme';
 
 export default function ProfileScreen({ navigation, route }) {
   const { user, logout, refreshUser } = useAuth();
   const { t, lang, setLang } = useI18n();
   const { isAdmin, isTeacher, isStudent, isPremium } = useRolePermissions();
   const [requesting, setRequesting] = useState(false);
+  const { theme } = useTheme();
 
   // Handle role upgrade request from params
   useEffect(() => {
@@ -24,24 +27,24 @@ export default function ProfileScreen({ navigation, route }) {
     if (requesting) return;
     
     Alert.alert(
-      'Request Role Upgrade',
-      `Would you like to request an upgrade to ${targetRole} role? This will require admin approval.`,
+      t('profile:requestRoleUpgrade'),
+      t('profile:requestUpgradeMessage').replace('{role}', targetRole),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common:cancel'), style: 'cancel' },
         {
-          text: 'Request Upgrade',
+          text: t('profile:requestUpgrade'),
           onPress: async () => {
             setRequesting(true);
             try {
               await authAPI.requestRoleUpgrade(targetRole);
               Alert.alert(
-                'Request Submitted',
-                `Your ${targetRole} role upgrade request has been submitted. An admin will review it shortly.`,
-                [{ text: 'OK' }]
+                t('profile:requestSubmitted'),
+                t('profile:upgradeRequestSubmitted').replace('{role}', targetRole),
+                [{ text: t('common:ok') }]
               );
             } catch (error) {
-              const message = error?.response?.data?.message || 'Failed to submit role upgrade request';
-              Alert.alert('Error', message);
+              const message = error?.response?.data?.message || t('profile:failedToSubmit');
+              Alert.alert(t('common:error'), message);
             } finally {
               setRequesting(false);
             }
@@ -69,12 +72,12 @@ export default function ProfileScreen({ navigation, route }) {
 
   const handleLogout = async () => {
     Alert.alert(
-      'Confirm Logout',
-      'Are you sure you want to logout?',
+      t('profile:confirmLogout'),
+      t('profile:areYouSure'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common:cancel'), style: 'cancel' },
         {
-          text: 'Logout',
+          text: t('common:logout'),
           style: 'destructive',
           onPress: logout
         }
@@ -84,7 +87,7 @@ export default function ProfileScreen({ navigation, route }) {
 
   const MenuButton = ({ title, icon, color, onPress, subtitle = null, badge = null }) => (
     <TouchableOpacity
-      style={[styles.menuButton, { borderLeftColor: color }]}
+      style={[styles.menuButton, { borderLeftColor: color, backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}
       onPress={onPress}
       activeOpacity={0.7}
     >
@@ -93,8 +96,8 @@ export default function ProfileScreen({ navigation, route }) {
           <Ionicons name={icon} size={20} color={color} />
         </View>
         <View style={styles.menuTextContainer}>
-          <Text style={styles.menuButtonTitle}>{title}</Text>
-          {subtitle && <Text style={styles.menuButtonSubtitle}>{subtitle}</Text>}
+          <Text style={[styles.menuButtonTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{title}</Text>
+          {subtitle && <Text style={[styles.menuButtonSubtitle, { color: theme === 'light' ? '#64748b' : '#9ca3af' }]}>{subtitle}</Text>}
         </View>
       </View>
       <View style={styles.menuButtonRight}>
@@ -109,7 +112,7 @@ export default function ProfileScreen({ navigation, route }) {
   );
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
       {/* Profile Header */}
       <LinearGradient colors={['#667eea', '#764ba2']} style={styles.header}>
         <View style={styles.avatarContainer}>
@@ -168,22 +171,38 @@ export default function ProfileScreen({ navigation, route }) {
 
       {/* Menu Content */}
       <View style={styles.content}>
+        {/* Appearance Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{t('profile:appearance')}</Text>
+          <View style={[styles.menuButton, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
+            <View style={styles.menuButtonLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: `#8B5CF620` }]}>
+                <Ionicons name="color-palette-outline" size={20} color="#8B5CF6" />
+              </View>
+              <View style={styles.menuTextContainer}>
+                <Text style={[styles.menuButtonTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{t('profile:darkMode')}</Text>
+              </View>
+            </View>
+            <ThemeToggle />
+          </View>
+        </View>
+
         {/* Subscription & Billing */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Subscription & Billing</Text>
+          <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{t('profile:subscriptionAndBilling')}</Text>
           
           <MenuButton
-            title="Subscription Plans"
-            subtitle={isPremium ? 'Manage your subscription' : 'Upgrade to premium'}
+            title={t('profile:subscriptionPlans')}
+            subtitle={isPremium ? t('profile:manageSubscription') : t('profile:upgradeToPremium')}
             icon="star-outline"
             color="#10B981"
-            badge={!isPremium ? "Upgrade" : null}
+            badge={!isPremium ? t('profile:upgradeLabel') : null}
             onPress={() => navigation.navigate('Subscription')}
           />
           
           <MenuButton
-            title="Payment History"
-            subtitle="View your payments and invoices"
+            title={t('profile:paymentHistory')}
+            subtitle={t('profile:viewPayments')}
             icon="card-outline"
             color="#0EA5E9"
             onPress={() => navigation.navigate('MyPayments')}
@@ -192,26 +211,26 @@ export default function ProfileScreen({ navigation, route }) {
 
         {/* Role-specific Features */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Role Features</Text>
+          <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{t('profile:roleFeatures')}</Text>
           
           {isAdmin && (
             <MenuButton
-              title="Admin Dashboard"
-              subtitle="Manage users, quizzes, and system settings"
+              title={t('profile:adminDashboard')}
+              subtitle={t('profile:manageSystem')}
               icon="settings-outline"
               color="#7C3AED"
-              badge="Admin"
+              badge={t('profile:adminLabel')}
               onPress={() => navigation.navigate('AdminDashboard')}
             />
           )}
           
           {isTeacher && (
             <MenuButton
-              title="Teacher Dashboard"
-              subtitle="Manage your classes and students"
+              title={t('profile:teacherDashboard')}
+              subtitle={t('profile:manageClasses')}
               icon="school-outline"
               color="#059669"
-              badge="Teacher"
+              badge={t('profile:teacherLabel')}
               onPress={() => navigation.navigate('TeacherDashboard')}
             />
           )}
@@ -219,19 +238,19 @@ export default function ProfileScreen({ navigation, route }) {
           {isStudent && (
             <>
               <MenuButton
-                title="Join Classes"
-                subtitle="Join teacher classes with codes"
+                title={t('profile:joinClasses')}
+                subtitle={t('profile:joinWithCode')}
                 icon="people-outline"
                 color="#2563EB"
                 onPress={() => navigation.navigate('JoinClass')}
               />
               
               <MenuButton
-                title="Become a Teacher"
-                subtitle="Request upgrade to teacher account"
+                title={t('profile:becomeTeacher')}
+                subtitle={t('profile:requestUpgrade')}
                 icon="trending-up-outline"
                 color="#F59E0B"
-                badge="Upgrade"
+                badge={t('profile:upgradeLabel')}
                 onPress={() => requestRoleUpgrade('teacher')}
               />
             </>
@@ -240,27 +259,27 @@ export default function ProfileScreen({ navigation, route }) {
 
         {/* Account & General */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account & Settings</Text>
+          <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{t('profile:accountSettings')}</Text>
           
           <MenuButton
-            title="Quiz History"
-            subtitle="View all your quiz attempts"
+            title={t('profile:quizHistory')}
+            subtitle={t('profile:viewAttempts')}
             icon="time-outline"
             color="#8B5CF6"
             onPress={() => navigation.navigate('History')}
           />
           
           <MenuButton
-            title="My Statistics"
-            subtitle="View your performance analytics"
+            title={t('profile:myStatistics')}
+            subtitle={t('profile:viewAnalytics')}
             icon="analytics-outline"
             color="#06B6D4"
             onPress={() => navigation.navigate('Stats')}
           />
           
           <MenuButton
-            title="My Quizzes"
-            subtitle="View and manage your created quizzes"
+            title={t('profile:myQuizzes')}
+            subtitle={t('profile:manageQuizzes')}
             icon="library-outline"
             color="#EC4899"
             onPress={() => navigation.navigate('MyQuizzes')}
@@ -270,7 +289,7 @@ export default function ProfileScreen({ navigation, route }) {
         {/* Logout */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color="white" />
-          <Text style={styles.logoutButtonText}>Logout</Text>
+          <Text style={styles.logoutButtonText}>{t('common:logout')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

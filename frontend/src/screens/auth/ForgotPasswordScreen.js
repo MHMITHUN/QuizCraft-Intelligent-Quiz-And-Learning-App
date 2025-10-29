@@ -16,6 +16,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useI18n } from '../../i18n';
 import { authAPI } from '../../services/api';
+import { useTheme } from '../../hooks/useTheme';
+import ThemeToggle from '../../components/ThemeToggle';
 
 export default function ForgotPasswordScreen({ navigation }) {
   const { t } = useI18n();
@@ -28,6 +30,7 @@ export default function ForgotPasswordScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
+  const { theme } = useTheme();
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-20)).current;
@@ -214,19 +217,19 @@ export default function ForgotPasswordScreen({ navigation }) {
       ]}
     >
       <View style={styles.stepHeader}>
-        <View style={styles.iconContainer}>
+        <View style={[styles.iconContainer, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
           <Ionicons name="mail" size={32} color="#4F46E5" />
         </View>
-        <Text style={styles.stepTitle}>Enter Your Email</Text>
-        <Text style={styles.stepDescription}>
+        <Text style={[styles.stepTitle, { color: theme === 'light' ? '#111827' : 'white' }]}>Enter Your Email</Text>
+        <Text style={[styles.stepDescription, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>
           We'll send you a secure code to reset your password
         </Text>
       </View>
 
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
         <Text style={styles.inputIcon}>📧</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: theme === 'light' ? '#111827' : 'white' }]}
           placeholder="Enter your email address"
           placeholderTextColor="#9CA3AF"
           value={email}
@@ -264,19 +267,19 @@ export default function ForgotPasswordScreen({ navigation }) {
   const renderCodeStep = () => (
     <Animated.View style={styles.stepContent}>
       <View style={styles.stepHeader}>
-        <View style={styles.iconContainer}>
+        <View style={[styles.iconContainer, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
           <Ionicons name="shield-checkmark" size={32} color="#10B981" />
         </View>
-        <Text style={styles.stepTitle}>Enter Reset Code</Text>
-        <Text style={styles.stepDescription}>
+        <Text style={[styles.stepTitle, { color: theme === 'light' ? '#111827' : 'white' }]}>Enter Reset Code</Text>
+        <Text style={[styles.stepDescription, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>
           Enter the 6-digit code sent to {email}
         </Text>
       </View>
 
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
         <Text style={styles.inputIcon}>🔐</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: theme === 'light' ? '#111827' : 'white' }]}
           placeholder="Enter 6-digit code"
           placeholderTextColor="#9CA3AF"
           value={resetCode}
@@ -321,7 +324,7 @@ export default function ForgotPasswordScreen({ navigation }) {
         style={styles.backButton}
         onPress={() => setStep(1)}
       >
-        <Text style={styles.backButtonText}>← Back to Email</Text>
+        <Text style={[styles.backButtonText, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>← Back to Email</Text>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -329,19 +332,19 @@ export default function ForgotPasswordScreen({ navigation }) {
   const renderPasswordStep = () => (
     <Animated.View style={styles.stepContent}>
       <View style={styles.stepHeader}>
-        <View style={styles.iconContainer}>
+        <View style={[styles.iconContainer, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
           <Ionicons name="key" size={32} color="#F59E0B" />
         </View>
-        <Text style={styles.stepTitle}>Create New Password</Text>
-        <Text style={styles.stepDescription}>
+        <Text style={[styles.stepTitle, { color: theme === 'light' ? '#111827' : 'white' }]}>Create New Password</Text>
+        <Text style={[styles.stepDescription, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>
           Choose a strong password for your account
         </Text>
       </View>
 
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
         <Text style={styles.inputIcon}>🔒</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: theme === 'light' ? '#111827' : 'white' }]}
           placeholder="New Password"
           placeholderTextColor="#9CA3AF"
           value={newPassword}
@@ -357,10 +360,10 @@ export default function ForgotPasswordScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
         <Text style={styles.inputIcon}>🔐</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: theme === 'light' ? '#111827' : 'white' }]}
           placeholder="Confirm New Password"
           placeholderTextColor="#9CA3AF"
           value={confirmPassword}
@@ -377,14 +380,14 @@ export default function ForgotPasswordScreen({ navigation }) {
       </View>
 
       <View style={styles.passwordRequirements}>
-        <Text style={styles.requirementsTitle}>Password must contain:</Text>
-        <Text style={[styles.requirement, newPassword.length >= 6 && styles.requirementMet]}>
+        <Text style={[styles.requirementsTitle, { color: theme === 'light' ? '#374151' : 'white' }]}>Password must contain:</Text>
+        <Text style={[styles.requirement, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }, newPassword.length >= 6 && styles.requirementMet]}>
           • At least 6 characters
         </Text>
-        <Text style={[styles.requirement, /[A-Z]/.test(newPassword) && styles.requirementMet]}>
+        <Text style={[styles.requirement, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }, /[A-Z]/.test(newPassword) && styles.requirementMet]}>
           • One uppercase letter (recommended)
         </Text>
-        <Text style={[styles.requirement, /[0-9]/.test(newPassword) && styles.requirementMet]}>
+        <Text style={[styles.requirement, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }, /[0-9]/.test(newPassword) && styles.requirementMet]}>
           • One number (recommended)
         </Text>
       </View>
@@ -413,13 +416,19 @@ export default function ForgotPasswordScreen({ navigation }) {
         style={styles.backButton}
         onPress={() => setStep(2)}
       >
-        <Text style={styles.backButtonText}>← Back to Code</Text>
+        <Text style={[styles.backButtonText, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>← Back to Code</Text>
       </TouchableOpacity>
     </Animated.View>
   );
 
   return (
-    <LinearGradient colors={['#667eea', '#764ba2', '#f093fb']} style={styles.gradient}>
+    <LinearGradient colors={theme === 'light' ? ['#667eea', '#764ba2', '#f093fb'] : ['#222','#555']} style={styles.gradient}>
+      <View style={styles.topBar}>
+        <View style={styles.themeToggleContainer}>
+          <Text style={{color: theme === 'light' ? 'black' : 'white', marginRight: 10}}>Light/Dark</Text>
+          <ThemeToggle />
+        </View>
+      </View>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
@@ -447,7 +456,7 @@ export default function ForgotPasswordScreen({ navigation }) {
             {renderStepIndicator()}
 
             {/* Card */}
-            <View style={styles.card}>
+            <View style={[styles.card, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e' }]}>
               {step === 1 && renderEmailStep()}
               {step === 2 && renderCodeStep()}
               {step === 3 && renderPasswordStep()}
@@ -471,6 +480,32 @@ export default function ForgotPasswordScreen({ navigation }) {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
+  },
+  topBar: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    left: 20,
+    zIndex: 2,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  themeToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  themeToggleContainer: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 2,
+  },
+  themeToggleContainer: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 2,
   },
   container: {
     flex: 1,

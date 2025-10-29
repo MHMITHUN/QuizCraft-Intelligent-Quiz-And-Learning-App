@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../context/AuthContext';
 import { quizAPI } from '../../services/api';
 import { useI18n } from '../../i18n';
+import { useTheme } from '../../hooks/useTheme';
 
 const { width } = Dimensions.get('window');
 
@@ -22,6 +23,7 @@ export default function HomeScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
+  const { theme } = useTheme();
 
   // Floating Action shortcut by role
   const Fab = () => (
@@ -100,7 +102,7 @@ export default function HomeScreen({ navigation }) {
           >
             {/* Category Badge */}
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>{quiz.category || 'General'}</Text>
+              <Text style={styles.badgeText}>{quiz.category || t('home:general')}</Text>
             </View>
 
             {/* Title */}
@@ -110,7 +112,7 @@ export default function HomeScreen({ navigation }) {
 
             {/* Description */}
             <Text style={styles.cardDescription} numberOfLines={2}>
-              {quiz.description || 'Test your knowledge'}
+              {quiz.description || t('home:testYourKnowledge')}
             </Text>
 
             {/* Stats */}
@@ -126,7 +128,8 @@ export default function HomeScreen({ navigation }) {
             </View>
 
             {/* Difficulty */}
-            <View style={[styles.difficulty, 
+            <View style={[
+              styles.difficulty, 
               quiz.difficulty === 'easy' && styles.difficultyEasy,
               quiz.difficulty === 'medium' && styles.difficultyMedium,
               quiz.difficulty === 'hard' && styles.difficultyHard,
@@ -146,9 +149,9 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme === 'light' ? '#F9FAFB' : '#121212' }]}>
       {/* Header */}
-      <LinearGradient colors={['#667eea', '#764ba2']} style={styles.header}>
+      <LinearGradient colors={ theme === 'light' ? ['#667eea', '#764ba2'] : ['#222','#555']} style={styles.header}>
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.greeting}>{t('home:hello')} {user?.name || 'Guest'}! 👋</Text>
@@ -186,16 +189,16 @@ export default function HomeScreen({ navigation }) {
 
       {/* Quiz List */}
       <View style={styles.listContainer}>
-        <Text style={styles.sectionTitle}>{t('home:exploreQuizzes')}</Text>
+        <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#111827' : '#FFF' }]}>{t('home:exploreQuizzes')}</Text>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>{t('common:loading')}</Text>
+            <Text style={[styles.loadingText, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>{t('common:loading')}</Text>
           </View>
         ) : !Array.isArray(quizzes) || quizzes.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyEmoji}>📚</Text>
-            <Text style={styles.emptyTitle}>{t('home:noQuizzesTitle')}</Text>
-            <Text style={styles.emptyText}>{t('home:noQuizzesText')}</Text>
+            <Text style={[styles.emptyTitle, { color: theme === 'light' ? '#111827' : '#FFF' }]}>{t('home:noQuizzesTitle')}</Text>
+            <Text style={[styles.emptyText, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>{t('home:noQuizzesText')}</Text>
             <TouchableOpacity 
               style={styles.createButton}
               onPress={() => navigation.navigate('Upload')}

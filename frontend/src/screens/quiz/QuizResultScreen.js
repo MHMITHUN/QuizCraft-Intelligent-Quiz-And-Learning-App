@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { historyAPI } from '../../services/api';
 import { useI18n } from '../../i18n';
+import { useTheme } from '../../hooks/useTheme';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -27,6 +28,7 @@ export default function QuizResultScreen({ route, navigation }) {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
   const [progressAnim] = useState(new Animated.Value(0));
+  const { theme } = useTheme();
 
   useEffect(() => {
     loadResults();
@@ -109,7 +111,7 @@ export default function QuizResultScreen({ route, navigation }) {
     const isCorrect = userAnswer === correctOption?.text;
     
     return (
-      <View key={index} style={styles.questionCard}>
+      <View key={index} style={[styles.questionCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
         <View style={styles.questionHeader}>
           <View style={styles.questionNumber}>
             <Text style={styles.questionNumberText}>{index + 1}</Text>
@@ -126,19 +128,19 @@ export default function QuizResultScreen({ route, navigation }) {
           </View>
         </View>
 
-        <Text style={styles.questionText}>{question.questionText}</Text>
+        <Text style={[styles.questionText, { color: theme === 'light' ? '#111827' : 'white' }]}>{question.questionText}</Text>
 
         <View style={styles.answerSection}>
-          <View style={[styles.answerBox, { borderColor: isCorrect ? '#10B981' : '#EF4444' }]}>
-            <Text style={styles.answerLabel}>Your Answer:</Text>
+          <View style={[styles.answerBox, { borderColor: isCorrect ? '#10B981' : '#EF4444', backgroundColor: theme === 'light' ? '#FAFAFA' : '#272727' }]}>
+            <Text style={[styles.answerLabel, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>Your Answer:</Text>
             <Text style={[styles.answerText, { color: isCorrect ? '#10B981' : '#EF4444' }]}>
               {userAnswer || 'Not answered'}
             </Text>
           </View>
 
           {!isCorrect && correctOption && (
-            <View style={[styles.answerBox, { borderColor: '#10B981', backgroundColor: '#F0FDF4' }]}>
-              <Text style={styles.answerLabel}>Correct Answer:</Text>
+            <View style={[styles.answerBox, { borderColor: '#10B981', backgroundColor: theme === 'light' ? '#F0FDF4' : '#10B98120' }]}>
+              <Text style={[styles.answerLabel, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>Correct Answer:</Text>
               <Text style={[styles.answerText, { color: '#10B981' }]}>
                 {correctOption.text}
               </Text>
@@ -147,12 +149,12 @@ export default function QuizResultScreen({ route, navigation }) {
         </View>
 
         {question.explanation && (
-          <View style={styles.explanationBox}>
+          <View style={[styles.explanationBox, { backgroundColor: theme === 'light' ? '#FEF3C7' : '#F59E0B20', borderLeftColor: '#F59E0B' }]}>
             <View style={styles.explanationHeader}>
               <Ionicons name="bulb" size={20} color="#F59E0B" />
-              <Text style={styles.explanationTitle}>Explanation</Text>
+              <Text style={[styles.explanationTitle, { color: theme === 'light' ? '#92400E' : '#FBBF24' }]}>Explanation</Text>
             </View>
-            <Text style={styles.explanationText}>{question.explanation}</Text>
+            <Text style={[styles.explanationText, { color: theme === 'light' ? '#78350F' : '#FDE68A' }]}>{question.explanation}</Text>
           </View>
         )}
       </View>
@@ -161,17 +163,17 @@ export default function QuizResultScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: theme === 'light' ? '#F8FAFC' : '#121212' }]}>
         <ActivityIndicator size="large" color="#4F46E5" />
-        <Text style={styles.loadingText}>Loading Results...</Text>
+        <Text style={[styles.loadingText, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>Loading Results...</Text>
       </View>
     );
   }
 
   if (!result) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>No results found</Text>
+      <View style={[styles.errorContainer, { backgroundColor: theme === 'light' ? '#F8FAFC' : '#121212' }]}>
+        <Text style={[styles.errorText, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>No results found</Text>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
@@ -187,10 +189,10 @@ export default function QuizResultScreen({ route, navigation }) {
   const totalQuestions = result.totalQuestions || result.quiz?.questions?.length || 0;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme === 'light' ? '#F8FAFC' : '#121212' }]}>
       {/* Header */}
       <LinearGradient 
-        colors={[gradeInfo.color, '#1F2937']} 
+        colors={theme === 'light' ? [gradeInfo.color, '#1F2937'] : ['#222','#555']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -249,22 +251,22 @@ export default function QuizResultScreen({ route, navigation }) {
       >
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
             <Ionicons name="checkmark-circle" size={24} color="#10B981" />
-            <Text style={styles.statNumber}>{correctAnswers}</Text>
-            <Text style={styles.statLabel}>Correct</Text>
+            <Text style={[styles.statNumber, { color: theme === 'light' ? '#111827' : 'white' }]}>{correctAnswers}</Text>
+            <Text style={[styles.statLabel, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>Correct</Text>
           </View>
           
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
             <Ionicons name="close-circle" size={24} color="#EF4444" />
-            <Text style={styles.statNumber}>{totalQuestions - correctAnswers}</Text>
-            <Text style={styles.statLabel}>Wrong</Text>
+            <Text style={[styles.statNumber, { color: theme === 'light' ? '#111827' : 'white' }]}>{totalQuestions - correctAnswers}</Text>
+            <Text style={[styles.statLabel, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>Wrong</Text>
           </View>
           
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
             <Ionicons name="time" size={24} color="#6366F1" />
-            <Text style={styles.statNumber}>{result.timeTaken || 0}s</Text>
-            <Text style={styles.statLabel}>Time</Text>
+            <Text style={[styles.statNumber, { color: theme === 'light' ? '#111827' : 'white' }]}>{result.timeTaken || 0}s</Text>
+            <Text style={[styles.statLabel, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>Time</Text>
           </View>
         </View>
 
@@ -300,7 +302,7 @@ export default function QuizResultScreen({ route, navigation }) {
         {/* Question Explanations */}
         {showExplanations && result.quiz?.questions && (
           <View style={styles.explanationsContainer}>
-            <Text style={styles.explanationsTitle}>📝 Question Review</Text>
+            <Text style={[styles.explanationsTitle, { color: theme === 'light' ? '#111827' : 'white' }]}>📝 Question Review</Text>
             {result.quiz.questions.map((question, index) => 
               renderQuestionExplanation(question, index)
             )}

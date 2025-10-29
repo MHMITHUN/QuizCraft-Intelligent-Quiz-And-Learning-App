@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { analyticsAPI, classesAPI } from '../../services/api';
 import { useI18n } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../hooks/useTheme';
 
 const { width } = Dimensions.get('window');
 
@@ -30,6 +31,7 @@ export default function LeaderboardScreen() {
   const [showClassSelector, setShowClassSelector] = useState(false);
   const [loading, setLoading] = useState(true);
   const [classLoading, setClassLoading] = useState(false);
+  const { theme } = useTheme();
   
   const pulse = useRef(new Animated.Value(0.4)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -238,34 +240,36 @@ export default function LeaderboardScreen() {
         <TouchableOpacity 
           style={[
             styles.card,
-            isCurrentUser && styles.cardHighlight
+            { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderLeftColor: theme === 'light' ? '#667eea' : '#4F46E5' },
+            isCurrentUser && (theme === 'light' ? styles.cardHighlight : styles.cardHighlightDark)
           ]} 
           activeOpacity={0.8}
         >
-          <View style={styles.rankContainer}>
+          <View style={[styles.rankContainer, { backgroundColor: theme === 'light' ? '#f3f4f6' : '#272727' }]}>
             <Text style={styles.rank}>{actualIndex + 1}</Text>
           </View>
           
           <View style={styles.userInfo}>
             <View style={[
               styles.avatar,
+              { backgroundColor: theme === 'light' ? '#667eea' : '#4F46E5' },
               isCurrentUser && { backgroundColor: '#EC4899' }
             ]}>
               <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
             </View>
             
             <View style={styles.userDetails}>
-              <Text style={styles.name}>
+              <Text style={[styles.name, { color: theme === 'light' ? '#1f2937' : 'white' }]}>
                 {item.name} {isCurrentUser && '(You)'}
               </Text>
               <View style={styles.stats}>
                 <View style={styles.statItem}>
                   <Ionicons name="trophy" size={14} color="#F59E0B" />
-                  <Text style={styles.statText}>{item.totalPoints} pts</Text>
+                  <Text style={[styles.statText, { color: theme === 'light' ? '#6b7280' : '#9CA3AF' }]}>{item.totalPoints} pts</Text>
                 </View>
                 <View style={styles.statItem}>
                   <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                  <Text style={styles.statText}>{item.quizzesTaken} quizzes</Text>
+                  <Text style={[styles.statText, { color: theme === 'light' ? '#6b7280' : '#9CA3AF' }]}>{item.quizzesTaken} quizzes</Text>
                 </View>
               </View>
             </View>
@@ -273,7 +277,7 @@ export default function LeaderboardScreen() {
           
           <View style={styles.scoreContainer}>
             <Text style={styles.score}>{item.totalPoints}</Text>
-            <Text style={styles.scoreLabel}>points</Text>
+            <Text style={[styles.scoreLabel, { color: theme === 'light' ? '#9ca3af' : '#6B7280' }]}>points</Text>
           </View>
         </TouchableOpacity>
       </Animated.View>
@@ -291,11 +295,11 @@ export default function LeaderboardScreen() {
       presentationStyle="pageSheet"
       transparent={false}
     >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>Select Class</Text>
+      <View style={[styles.modalContainer, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
+        <View style={[styles.modalHeader, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderBottomColor: theme === 'light' ? '#E5E7EB' : '#272727' }]}>
+          <Text style={[styles.modalTitle, { color: theme === 'light' ? '#1f2937' : 'white' }]}>Select Class</Text>
           <TouchableOpacity onPress={() => setShowClassSelector(false)}>
-            <Ionicons name="close" size={24} color="#1f2937" />
+            <Ionicons name="close" size={24} color={theme === 'light' ? '#1f2937' : 'white'} />
           </TouchableOpacity>
         </View>
         
@@ -305,16 +309,17 @@ export default function LeaderboardScreen() {
               key={classItem._id}
               style={[
                 styles.classItem,
-                selectedClass?._id === classItem._id && styles.classItemSelected
+                { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' },
+                selectedClass?._id === classItem._id && (theme === 'light' ? styles.classItemSelected : styles.classItemSelectedDark)
               ]}
               onPress={() => handleClassSelect(classItem)}
             >
-              <View style={styles.classIcon}>
+              <View style={[styles.classIcon, { backgroundColor: theme === 'light' ? '#EEF2FF' : '#4F46E520' }]}>
                 <Ionicons name="school" size={24} color="#4F46E5" />
               </View>
               <View style={styles.classInfo}>
-                <Text style={styles.className}>{classItem.name}</Text>
-                <Text style={styles.classStats}>
+                <Text style={[styles.className, { color: theme === 'light' ? '#1f2937' : 'white' }]}>{classItem.name}</Text>
+                <Text style={[styles.classStats, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>
                   {classItem.students?.length || 0} students
                 </Text>
               </View>
@@ -332,20 +337,21 @@ export default function LeaderboardScreen() {
   const currentLoading = activeTab === 'global' ? loading : (loading || classLoading);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
       {/* Tab Selector */}
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderBottomColor: theme === 'light' ? '#E5E7EB' : '#272727' }]}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'global' && styles.tabActive]}
+          style={[styles.tab, activeTab === 'global' && (theme === 'light' ? styles.tabActive : styles.tabActiveDark)]}
           onPress={() => setActiveTab('global')}
         >
           <Ionicons 
             name="globe" 
             size={20} 
-            color={activeTab === 'global' ? '#4F46E5' : '#9CA3AF'} 
+            color={activeTab === 'global' ? '#4F46E5' : (theme === 'light' ? '#9CA3AF' : '#6B7280')} 
           />
           <Text style={[
             styles.tabText,
+            { color: theme === 'light' ? '#9CA3AF' : '#6B7280' },
             activeTab === 'global' && styles.tabTextActive
           ]}>
             Global
@@ -354,16 +360,17 @@ export default function LeaderboardScreen() {
         
         {myClasses.length > 0 && (
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'class' && styles.tabActive]}
+            style={[styles.tab, activeTab === 'class' && (theme === 'light' ? styles.tabActive : styles.tabActiveDark)]}
             onPress={() => setActiveTab('class')}
           >
             <Ionicons 
               name="school" 
               size={20} 
-              color={activeTab === 'class' ? '#4F46E5' : '#9CA3AF'} 
+              color={activeTab === 'class' ? '#4F46E5' : (theme === 'light' ? '#9CA3AF' : '#6B7280')} 
             />
             <Text style={[
               styles.tabText,
+              { color: theme === 'light' ? '#9CA3AF' : '#6B7280' },
               activeTab === 'class' && styles.tabTextActive
             ]}>
               Class
@@ -375,11 +382,11 @@ export default function LeaderboardScreen() {
       {/* Class Selector Button */}
       {activeTab === 'class' && myClasses.length > 0 && (
         <TouchableOpacity
-          style={styles.classSelectorButton}
+          style={[styles.classSelectorButton, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]}
           onPress={() => setShowClassSelector(true)}
         >
           <Ionicons name="school" size={20} color="#4F46E5" />
-          <Text style={styles.classSelectorText}>
+          <Text style={[styles.classSelectorText, { color: theme === 'light' ? '#1f2937' : 'white' }]}>
             {selectedClass?.name || 'Select Class'}
           </Text>
           <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
@@ -389,13 +396,13 @@ export default function LeaderboardScreen() {
       {currentLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4F46E5" />
-          <Text style={styles.loadingTitle}>Loading Leaderboard...</Text>
+          <Text style={[styles.loadingTitle, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>Loading Leaderboard...</Text>
         </View>
       ) : currentLeaderboard.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="trophy-outline" size={64} color="#9CA3AF" />
-          <Text style={styles.emptyTitle}>No Data Yet</Text>
-          <Text style={styles.emptyText}>
+          <Text style={[styles.emptyTitle, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>No Data Yet</Text>
+          <Text style={[styles.emptyText, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>
             {activeTab === 'global' 
               ? 'Complete quizzes to appear on the leaderboard!'
               : 'No quiz attempts in this class yet.'}
@@ -444,6 +451,9 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     backgroundColor: '#EEF2FF',
+  },
+  tabActiveDark: {
+    backgroundColor: '#4F46E520',
   },
   tabText: {
     fontSize: 16,
@@ -603,6 +613,10 @@ const styles = StyleSheet.create({
   cardHighlight: {
     borderLeftColor: '#EC4899',
     backgroundColor: '#FDF2F8',
+  },
+  cardHighlightDark: {
+    borderLeftColor: '#EC4899',
+    backgroundColor: '#EC489920',
   },
   rankContainer: {
     width: 40,

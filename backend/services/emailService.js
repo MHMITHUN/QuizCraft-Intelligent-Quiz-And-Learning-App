@@ -329,10 +329,27 @@ const sendPasswordResetCodeEmail = async (user, code) => {
   await sendEmail({ to: user.email, subject, html, text });
 };
 
+const sendAdminLoginCodeEmail = async (user, code) => {
+  const subject = '🔐 QuizCraft Admin Login Verification';
+  const html = build3DTemplate({
+    heading: 'Admin Login Verification',
+    subHeading: `A login attempt was made to your admin account. Enter this code to complete authentication.`,
+    previewText: 'Admin 2FA verification code',
+    highlight: `Your verification code is <strong style="font-size:24px;letter-spacing:8px;color:#38bdf8;text-shadow:0 0 10px rgba(56,189,248,0.5);">${code}</strong><br/><br/>This code expires in <strong>10 minutes</strong>.`,
+    ctaLabel: 'Open Admin Panel',
+    ctaUrl: process.env.APP_URL || 'http://localhost:3000',
+    fallbackText: `Admin Login Code: ${code}. Valid for 10 minutes. If you didn't attempt to login, secure your account immediately.`,
+    secondaryAction: "🔒 Didn't try to login? Change your admin password immediately and contact support."
+  });
+  const text = `Admin Login Verification\n\nYour QuizCraft admin login code is ${code}.\nThis code expires in 10 minutes.\n\nIf you didn't attempt to login, secure your account immediately.\n\nQuizCraft Security Team`;
+  await sendEmail({ to: user.email, subject, html, text });
+};
+
 module.exports = {
   sendEmail,
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendVerificationCodeEmail,
-  sendPasswordResetCodeEmail
+  sendPasswordResetCodeEmail,
+  sendAdminLoginCodeEmail
 };

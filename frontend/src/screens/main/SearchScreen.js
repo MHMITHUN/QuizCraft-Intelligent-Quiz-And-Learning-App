@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useI18n } from '../../i18n';
 import { searchAPI, quizAPI } from '../../services/api';
+import { useTheme } from '../../hooks/useTheme';
 
 export default function SearchScreen({ navigation }) {
   const { t } = useI18n();
@@ -28,6 +29,7 @@ export default function SearchScreen({ navigation }) {
   const [showHistory, setShowHistory] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-20)).current;
+  const { theme } = useTheme();
 
   useEffect(() => {
     loadInitialData();
@@ -136,7 +138,8 @@ export default function SearchScreen({ navigation }) {
     <Animated.View 
       style={[
         styles.quizCard,
-        {
+        { 
+          backgroundColor: theme === 'light' ? 'white' : '#1e1e1e',
           opacity: fadeAnim,
           transform: [{
             translateY: fadeAnim.interpolate({
@@ -153,7 +156,7 @@ export default function SearchScreen({ navigation }) {
         activeOpacity={0.8}
       >
         <View style={styles.quizCardHeader}>
-          <Text style={styles.quizTitle} numberOfLines={2}>{item.title}</Text>
+          <Text style={[styles.quizTitle, { color: theme === 'light' ? '#111827' : 'white' }]} numberOfLines={2}>{item.title}</Text>
           <View style={styles.difficultyBadge}>
             <Text style={styles.difficultyText}>{item.difficulty || 'Medium'}</Text>
           </View>
@@ -162,12 +165,12 @@ export default function SearchScreen({ navigation }) {
         <View style={styles.quizCardMeta}>
           <View style={styles.metaItem}>
             <Ionicons name="folder-outline" size={16} color="#6B7280" />
-            <Text style={styles.metaText}>{item.category || 'General'}</Text>
+            <Text style={[styles.metaText, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>{item.category || 'General'}</Text>
           </View>
           
           <View style={styles.metaItem}>
             <Ionicons name="help-circle-outline" size={16} color="#6B7280" />
-            <Text style={styles.metaText}>{item.questions?.length || 0} questions</Text>
+            <Text style={[styles.metaText, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>{item.questions?.length || 0} questions</Text>
           </View>
           
           {item.similarity && (
@@ -181,7 +184,7 @@ export default function SearchScreen({ navigation }) {
         </View>
         
         <View style={styles.quizCardFooter}>
-          <Text style={styles.creatorText}>By {item.creator?.name || 'Unknown'}</Text>
+          <Text style={[styles.creatorText, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>By {item.creator?.name || 'Unknown'}</Text>
           <TouchableOpacity style={styles.playButton}>
             <Ionicons name="play" size={16} color="white" />
           </TouchableOpacity>
@@ -192,22 +195,22 @@ export default function SearchScreen({ navigation }) {
 
   const renderCategoryItem = ({ item }) => (
     <TouchableOpacity 
-      style={styles.categoryChip}
+      style={[styles.categoryChip, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]}
       onPress={() => onCategorySearch(item)}
       activeOpacity={0.7}
     >
-      <Text style={styles.categoryText}>{item}</Text>
+      <Text style={[styles.categoryText, { color: theme === 'light' ? '#374151' : 'white' }]}>{item}</Text>
     </TouchableOpacity>
   );
 
   const renderHistoryItem = ({ item }) => (
     <TouchableOpacity 
-      style={styles.historyItem}
+      style={[styles.historyItem, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]}
       onPress={() => onHistorySearch(item)}
       activeOpacity={0.7}
     >
       <Ionicons name="time-outline" size={20} color="#6B7280" />
-      <Text style={styles.historyText}>{item}</Text>
+      <Text style={[styles.historyText, { color: theme === 'light' ? '#374151' : 'white' }]}>{item}</Text>
       <TouchableOpacity 
         onPress={() => setSearchHistory(prev => prev.filter(h => h !== item))}
         style={styles.removeHistoryBtn}
@@ -219,19 +222,19 @@ export default function SearchScreen({ navigation }) {
 
   const renderSuggestionItem = ({ item }) => (
     <TouchableOpacity 
-      style={styles.suggestionCard}
+      style={[styles.suggestionCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]}
       onPress={() => navigation.navigate('QuizDetail', { id: item._id })}
       activeOpacity={0.8}
     >
-      <Text style={styles.suggestionTitle} numberOfLines={1}>{item.title}</Text>
-      <Text style={styles.suggestionMeta}>{item.category} • {item.questions?.length || 0} questions</Text>
+      <Text style={[styles.suggestionTitle, { color: theme === 'light' ? '#111827' : 'white' }]} numberOfLines={1}>{item.title}</Text>
+      <Text style={[styles.suggestionMeta, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>{item.category} • {item.questions?.length || 0} questions</Text>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme === 'light' ? '#F8FAFC' : '#121212' }]}>
       {/* Header */}
-      <LinearGradient colors={['#4F46E5', '#7C3AED']} style={styles.header}>
+      <LinearGradient colors={theme === 'light' ? ['#4F46E5', '#7C3AED'] : ['#222','#555']} style={styles.header}>
         <Animated.View 
           style={[
             styles.headerContent,
@@ -247,11 +250,11 @@ export default function SearchScreen({ navigation }) {
       </LinearGradient>
 
       {/* Search Input */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
+      <View style={[styles.searchContainer, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
+        <View style={[styles.searchInputContainer, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
           <Ionicons name="search-outline" size={20} color="#6B7280" style={styles.searchIcon} />
           <TextInput 
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: theme === 'light' ? '#111827' : 'white' }]}
             placeholder="Search quizzes..."
             placeholderTextColor="#9CA3AF"
             value={query}
@@ -295,7 +298,7 @@ export default function SearchScreen({ navigation }) {
         {/* Search History */}
         {showHistory && searchHistory.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Searches</Text>
+            <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#111827' : 'white' }]}>Recent Searches</Text>
             <FlatList 
               data={searchHistory}
               renderItem={renderHistoryItem}
@@ -309,14 +312,14 @@ export default function SearchScreen({ navigation }) {
         {loading && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#4F46E5" />
-            <Text style={styles.loadingText}>Searching quizzes...</Text>
+            <Text style={[styles.loadingText, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>Searching quizzes...</Text>
           </View>
         )}
 
         {/* Search Results */}
         {results.length > 0 && !loading && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#111827' : 'white' }]}>
               Search Results ({results.length})
             </Text>
             <FlatList 
@@ -333,15 +336,15 @@ export default function SearchScreen({ navigation }) {
         {query.length > 0 && results.length === 0 && !loading && (
           <View style={styles.noResultsContainer}>
             <Text style={styles.noResultsEmoji}>🔍</Text>
-            <Text style={styles.noResultsTitle}>No quizzes found</Text>
-            <Text style={styles.noResultsText}>Try searching with different keywords or browse categories below</Text>
+            <Text style={[styles.noResultsTitle, { color: theme === 'light' ? '#111827' : 'white' }]}>No quizzes found</Text>
+            <Text style={[styles.noResultsText, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>Try searching with different keywords or browse categories below</Text>
           </View>
         )}
 
         {/* Popular Categories */}
         {(results.length === 0 || query.length === 0) && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Popular Categories</Text>
+            <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#111827' : 'white' }]}>Popular Categories</Text>
             <FlatList 
               data={popularCategories}
               renderItem={renderCategoryItem}
@@ -356,7 +359,7 @@ export default function SearchScreen({ navigation }) {
         {/* Suggested Quizzes */}
         {(results.length === 0 || query.length === 0) && recentQuizzes.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Suggested for You</Text>
+            <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#111827' : 'white' }]}>Suggested for You</Text>
             <FlatList 
               data={recentQuizzes}
               renderItem={renderSuggestionItem}

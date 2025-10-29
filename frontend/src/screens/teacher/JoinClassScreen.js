@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { classesAPI } from '../../services/api';
 import { useI18n } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../hooks/useTheme';
 
 export default function JoinClassScreen({ navigation }) {
   const { t } = useI18n();
@@ -24,6 +25,7 @@ export default function JoinClassScreen({ navigation }) {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [joinedClasses, setJoinedClasses] = useState([]);
+  const { theme } = useTheme();
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-20)).current;
@@ -145,7 +147,7 @@ export default function JoinClassScreen({ navigation }) {
   };
 
   return (
-    <LinearGradient colors={['#4F46E5', '#7C3AED']} style={styles.gradient}>
+    <LinearGradient colors={theme === 'light' ? ['#4F46E5', '#7C3AED'] : ['#222','#555']} style={styles.gradient}>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
@@ -169,7 +171,7 @@ export default function JoinClassScreen({ navigation }) {
             {/* Header */}
             <View style={styles.header}>
               <TouchableOpacity 
-                style={styles.backButton} 
+                style={styles.backButton}
                 onPress={() => navigation.goBack()}
               >
                 <Ionicons name="arrow-back" size={24} color="white" />
@@ -181,20 +183,20 @@ export default function JoinClassScreen({ navigation }) {
             </View>
 
             {/* Join Form Card */}
-            <View style={styles.card}>
+            <View style={[styles.card, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e' }]}>
               <View style={styles.formHeader}>
-                <View style={styles.iconContainer}>
+                <View style={[styles.iconContainer, { backgroundColor: theme === 'light' ? '#EEF2FF' : '#4F46E520' }]}>
                   <Ionicons name="key" size={32} color="#4F46E5" />
                 </View>
-                <Text style={styles.cardTitle}>Enter Class Code</Text>
-                <Text style={styles.cardDescription}>
+                <Text style={[styles.cardTitle, { color: theme === 'light' ? '#111827' : 'white' }]}>Enter Class Code</Text>
+                <Text style={[styles.cardDescription, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>
                   Ask your teacher for the 6-digit class code
                 </Text>
               </View>
 
               <View style={styles.inputContainer}>
                 <TextInput 
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727', color: theme === 'light' ? '#111827' : 'white' }]}
                   placeholder="Enter class code (e.g., ABC123)"
                   placeholderTextColor="#9CA3AF"
                   value={code}
@@ -237,25 +239,25 @@ export default function JoinClassScreen({ navigation }) {
               <View style={styles.joinedClassesContainer}>
                 <Text style={styles.joinedClassesTitle}>Your Classes</Text>
                 {joinedClasses.map((classItem) => (
-                  <View key={classItem._id} style={styles.classCard}>
+                  <View key={classItem._id} style={[styles.classCard, { backgroundColor: theme === 'light' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(0, 0, 0, 0.5)' }]}>
                     <View style={styles.classInfo}>
-                      <Text style={styles.className}>{classItem.name}</Text>
-                      <Text style={styles.classCode}>Code: {classItem.code}</Text>
-                      <Text style={styles.classTeacher}>
+                      <Text style={[styles.className, { color: theme === 'light' ? '#111827' : 'white' }]}>{classItem.name}</Text>
+                      <Text style={[styles.classCode, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>Code: {classItem.code}</Text>
+                      <Text style={[styles.classTeacher, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>
                         Teacher: {classItem.teacher?.name || 'Unknown'}
                       </Text>
                     </View>
                     
                     <View style={styles.classActions}>
                       <TouchableOpacity
-                        style={styles.viewClassButton}
+                        style={[styles.viewClassButton, { backgroundColor: theme === 'light' ? '#EEF2FF' : '#4F46E520' }]}
                         onPress={() => navigation.navigate('ClassDetail', { id: classItem._id })}
                       >
                         <Ionicons name="eye" size={16} color="#4F46E5" />
                       </TouchableOpacity>
                       
                       <TouchableOpacity
-                        style={styles.leaveClassButton}
+                        style={[styles.leaveClassButton, { backgroundColor: theme === 'light' ? '#FEF2F2' : '#EF444420' }]}
                         onPress={() => leaveClass(classItem._id, classItem.name)}
                       >
                         <Ionicons name="exit" size={16} color="#EF4444" />

@@ -46,6 +46,10 @@ router.post('/upload-and-generate', protect, upload.single('file'), async (req, 
     // Validate text length
     textExtractor.validateText(cleanedText, 100);
 
+    // Auto-detect language from content if not explicitly provided
+    const detectedLanguage = language || textExtractor.detectLanguage(cleanedText);
+    console.log(`🌐 Using language: ${detectedLanguage}`);
+
     // Generate quiz using Gemini AI
     console.log('🤖 Generating quiz with AI...');
     const quizResult = await geminiService.generateQuiz({
@@ -53,7 +57,7 @@ router.post('/upload-and-generate', protect, upload.single('file'), async (req, 
       numQuestions: parseInt(numQuestions) || 10,
       quizType: quizType || 'mcq',
       difficulty: difficulty || 'medium',
-      language: language || 'en',
+      language: detectedLanguage,
       category: category || ''
     });
 
@@ -75,7 +79,7 @@ router.post('/upload-and-generate', protect, upload.single('file'), async (req, 
       questions: quizData.questions,
       category: quizData.category || category || 'General',
       tags: await geminiService.extractTopics(cleanedText),
-      language: language || 'en',
+      language: detectedLanguage,
       difficulty: difficulty || 'mixed',
       sourceContent: {
         text: cleanedText.substring(0, 5000),
@@ -192,6 +196,11 @@ router.post('/stream-upload-and-generate', protect, upload.single('file'), async
     textExtractor.validateText(cleanedText, 100);
     send({ event: 'extracted', length: cleanedText.length });
 
+    // Auto-detect language from content
+    const detectedLanguage = language || textExtractor.detectLanguage(cleanedText);
+    console.log(`🌐 Using language: ${detectedLanguage}`);
+    send({ event: 'language-detected', language: detectedLanguage });
+
     const collected = { meta: null, questions: [] };
 
     // Stream quiz generation
@@ -201,7 +210,7 @@ router.post('/stream-upload-and-generate', protect, upload.single('file'), async
         numQuestions: parseInt(numQuestions) || 10,
         quizType: quizType || 'mcq',
         difficulty: difficulty || 'medium',
-        language: language || 'en',
+        language: detectedLanguage,
         category: category || ''
       },
       (evt) => {
@@ -234,7 +243,7 @@ router.post('/stream-upload-and-generate', protect, upload.single('file'), async
           questions: collected.questions,
           category: cat,
           tags: await geminiService.extractTopics(cleanedText),
-          language: language || 'en',
+          language: detectedLanguage,
           difficulty: difficulty || 'mixed',
           sourceContent: {
             text: cleanedText.substring(0, 5000),
@@ -312,13 +321,17 @@ router.post('/generate-from-text', protect, async (req, res) => {
       });
     }
 
+    // Auto-detect language from content
+    const detectedLanguage = language || textExtractor.detectLanguage(text);
+    console.log(`🌐 Using language: ${detectedLanguage}`);
+
     // Generate quiz
     const quizResult = await geminiService.generateQuiz({
       content: text,
       numQuestions: parseInt(numQuestions) || 10,
       quizType: quizType || 'mcq',
       difficulty: difficulty || 'medium',
-      language: language || 'en',
+      language: detectedLanguage,
       category: category || ''
     });
 
@@ -339,7 +352,7 @@ router.post('/generate-from-text', protect, async (req, res) => {
       questions: quizData.questions,
       category: quizData.category || category || 'General',
       tags: await geminiService.extractTopics(text),
-      language: language || 'en',
+      language: detectedLanguage,
       difficulty: difficulty || 'mixed',
       sourceContent: {
         text: text.substring(0, 5000),
@@ -421,6 +434,11 @@ router.post('/stream-from-text', protect, async (req, res) => {
 
     send({ event: 'ready' });
 
+    // Auto-detect language from content
+    const detectedLanguage = language || textExtractor.detectLanguage(text);
+    console.log(`🌐 Using language: ${detectedLanguage}`);
+    send({ event: 'language-detected', language: detectedLanguage });
+
     const collected = { meta: null, questions: [] };
 
     await geminiService.streamQuizNDJSON(
@@ -429,7 +447,7 @@ router.post('/stream-from-text', protect, async (req, res) => {
         numQuestions: parseInt(numQuestions) || 10,
         quizType: quizType || 'mcq',
         difficulty: difficulty || 'medium',
-        language: language || 'en',
+        language: detectedLanguage,
         category: category || ''
       },
       (evt) => {
@@ -462,7 +480,7 @@ router.post('/stream-from-text', protect, async (req, res) => {
           questions: collected.questions,
           category: cat,
           tags: await geminiService.extractTopics(text),
-          language: language || 'en',
+          language: detectedLanguage,
           difficulty: difficulty || 'mixed',
           sourceContent: { text: text.substring(0, 5000), fileType: 'text/plain' }
         });

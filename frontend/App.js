@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
@@ -9,6 +9,9 @@ import { I18nProvider } from './src/i18n';
 import { Ionicons } from '@expo/vector-icons';
 import WebResponsiveWrapper from './src/components/WebResponsiveWrapper';
 import { ToastComponent } from './src/components/Toast';
+import { ThemeProvider } from './src/context/ThemeContext';
+import { useTheme } from './src/hooks/useTheme';
+import GuestTrialBanner from './src/components/GuestTrialBanner';
 
 // Import web styles for better responsive design (web only)
 if (Platform.OS === 'web') {
@@ -25,6 +28,7 @@ import SignupScreen from './src/screens/auth/SignupScreen';
 import WelcomeScreen from './src/screens/auth/WelcomeScreen';
 import ForgotPasswordScreen from './src/screens/auth/ForgotPasswordScreen';
 import VerifyEmailScreen from './src/screens/auth/VerifyEmailScreen';
+import AdminVerificationScreen from './src/screens/auth/AdminVerificationScreen';
 
 // Main Screens
 import HomeScreen from './src/screens/main/HomeScreen';
@@ -53,6 +57,7 @@ const Tab = createBottomTabNavigator();
 function MainTabs() {
   const { user } = useAuth();
   const isWeb = Platform.OS === 'web';
+  const { theme } = useTheme();
 
   return (
     <Tab.Navigator
@@ -72,16 +77,16 @@ function MainTabs() {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#4F46E5',
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: theme === 'light' ? '#4F46E5' : '#A5B4FC',
+        tabBarInactiveTintColor: theme === 'light' ? 'gray' : '#9CA3AF',
         tabBarStyle: {
           paddingBottom: 5,
           paddingTop: 5,
           height: 60,
           width: isWeb ? '100%' : 'auto',
-          backgroundColor: '#fff',
+          backgroundColor: theme === 'light' ? '#fff' : '#1e1e1e',
           borderTopWidth: 1,
-          borderTopColor: '#e5e5e5'
+          borderTopColor: theme === 'light' ? '#e5e5e5' : '#272727'
         },
         headerShown: false
       })}
@@ -97,12 +102,13 @@ function MainTabs() {
 // Auth Stack
 function AuthStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Welcome">
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Signup" component={SignupScreen} />
       <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="AdminVerification" component={AdminVerificationScreen} />
     </Stack.Navigator>
   );
 }
@@ -176,6 +182,13 @@ function AppStack() {
         name="MyPayments" 
         component={require('./src/screens/billing/MyPaymentsScreen').default}
         options={{ title: 'My Payments' }}
+      />
+      
+      {/* Admin 2FA Verification - accessible from login */}
+      <Stack.Screen 
+        name="AdminVerification" 
+        component={AdminVerificationScreen}
+        options={{ title: 'Admin Verification', headerShown: false }}
       />
       
       {/* Student-specific screens */}
@@ -272,23 +285,55 @@ export default function App() {
   const isWeb = Platform.OS === 'web';
   
   return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+}
+
+function AppContent() {
+  const isWeb = Platform.OS === 'web';
+  const { theme } = useTheme();
+
+  const lightTheme = {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      background: '#f8fafc',
+      text: '#000000',
+      card: '#ffffff',
+      border: '#e5e5e5',
+    },
+  };
+
+  const darkTheme = {
+    ...DarkTheme,
+    colors: {
+      ...DarkTheme.colors,
+      background: '#121212',
+      text: '#ffffff',
+      card: '#1e1e1e',
+      border: '#272727',
+    },
+  };
+
+  const currentTheme = theme === 'light' ? lightTheme : darkTheme;
+
+  return (
     <WebResponsiveWrapper>
       <I18nProvider>
         <AuthProvider>
-          <NavigationContainer
-            theme={{
-              colors: {
-                background: '#f8fafc',
-              },
-            }}
-          >
-            <StatusBar style="auto" />
+          <NavigationContainer theme={currentTheme}>
+            <StatusBar style={theme === 'light' ? 'dark' : 'light'} />
             <View style={{
               flex: 1,
               minHeight: isWeb ? '100vh' : 'auto',
               width: isWeb ? '100vw' : 'auto'
             }}>
-              <RootNavigator />
+              <GuestTrialBanner />
+              <View style={{ flex: 1 }}>
+                <RootNavigator />
+              </View>
               <ToastComponent />
             </View>
           </NavigationContainer>

@@ -14,6 +14,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../context/AuthContext';
 import { useI18n } from '../../i18n';
+import { useTheme } from '../../hooks/useTheme';
+import ThemeToggle from '../../components/ThemeToggle';
 
 export default function SignupScreen({ navigation }) {
   const { t, setLang, lang } = useI18n();
@@ -26,6 +28,7 @@ export default function SignupScreen({ navigation }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [localLoading, setLocalLoading] = useState(false);
   const { register } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const handleSignup = async () => {
     // Coerce and sanitize inputs to avoid undefined access
@@ -79,7 +82,84 @@ export default function SignupScreen({ navigation }) {
   };
 
   return (
-    <LinearGradient colors={['#667eea', '#764ba2', '#f093fb']} style={styles.gradient}>
+    <LinearGradient colors={theme === 'light' ? ['#667eea', '#764ba2', '#f093fb'] : ['#222','#555']} style={styles.gradient}>
+      <View style={styles.topBar}>
+        {/* Language Toggle */}
+        <View style={styles.toggleGroup}>
+          <TouchableOpacity 
+            onPress={() => setLang('en')} 
+            style={[
+              styles.toggleBtn, 
+              styles.toggleLeft,
+              lang === 'en' && styles.toggleBtnActive,
+              { 
+                backgroundColor: lang === 'en' ? (theme === 'light' ? '#FFF' : '#4F46E5') : 'transparent',
+                borderColor: theme === 'light' ? '#FFF' : '#A5B4FC'
+              }
+            ]}
+          >
+            <Text style={[
+              styles.toggleBtnText,
+              { color: lang === 'en' ? (theme === 'light' ? '#667eea' : '#FFF') : (theme === 'light' ? '#FFF' : '#A5B4FC') }
+            ]}>EN</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => setLang('bn')} 
+            style={[
+              styles.toggleBtn,
+              styles.toggleRight,
+              lang === 'bn' && styles.toggleBtnActive,
+              { 
+                backgroundColor: lang === 'bn' ? (theme === 'light' ? '#FFF' : '#4F46E5') : 'transparent',
+                borderColor: theme === 'light' ? '#FFF' : '#A5B4FC'
+              }
+            ]}
+          >
+            <Text style={[
+              styles.toggleBtnText,
+              { color: lang === 'bn' ? (theme === 'light' ? '#667eea' : '#FFF') : (theme === 'light' ? '#FFF' : '#A5B4FC') }
+            ]}>বাংলা</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Theme Toggle */}
+        <View style={styles.toggleGroup}>
+          <TouchableOpacity 
+            onPress={() => theme === 'dark' && toggleTheme()}
+            style={[
+              styles.toggleBtn,
+              styles.toggleLeft,
+              theme === 'light' && styles.toggleBtnActive,
+              { 
+                backgroundColor: theme === 'light' ? '#FFF' : 'transparent',
+                borderColor: theme === 'light' ? '#FFF' : '#A5B4FC'
+              }
+            ]}
+          >
+            <Text style={[
+              styles.toggleBtnText,
+              { color: theme === 'light' ? '#667eea' : '#A5B4FC' }
+            ]}>☀️</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => theme === 'light' && toggleTheme()}
+            style={[
+              styles.toggleBtn,
+              styles.toggleRight,
+              theme === 'dark' && styles.toggleBtnActive,
+              { 
+                backgroundColor: theme === 'dark' ? '#4F46E5' : 'transparent',
+                borderColor: theme === 'light' ? '#FFF' : '#A5B4FC'
+              }
+            ]}
+          >
+            <Text style={[
+              styles.toggleBtnText,
+              { color: theme === 'dark' ? '#FFF' : (theme === 'light' ? '#FFF' : '#A5B4FC') }
+            ]}>🌙</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
@@ -94,29 +174,15 @@ export default function SignupScreen({ navigation }) {
             <Text style={styles.emoji}>🚀</Text>
             <Text style={styles.title}>{t('login:signup')}</Text>
             <Text style={styles.subtitle}>{t('login:joinToday') || 'Join QuizCraft today'}</Text>
-            <View style={styles.langRow}>
-              <TouchableOpacity 
-                onPress={() => setLang('en')} 
-                style={[styles.langBtn, styles.langLeft, lang === 'en' && styles.langBtnActive]}
-              >
-                <Text style={[styles.langBtnText, lang === 'en' && styles.langBtnTextActive]}>EN</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={() => setLang('bn')} 
-                style={[styles.langBtn, styles.langRight, lang === 'bn' && styles.langBtnActive]}
-              >
-                <Text style={[styles.langBtnText, lang === 'bn' && styles.langBtnTextActive]}>বাংলা</Text>
-              </TouchableOpacity>
-            </View>
           </View>
 
           {/* Card */}
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e' }]}>
             {/* Name Input */}
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
               <Text style={styles.inputIcon}>👤</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme === 'light' ? '#111827' : 'white' }]}
                 placeholder={t('login:fullName') || 'Full Name'}
                 placeholderTextColor="#9CA3AF"
                 value={name}
@@ -126,10 +192,10 @@ export default function SignupScreen({ navigation }) {
             </View>
 
             {/* Email Input */}
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
               <Text style={styles.inputIcon}>📧</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme === 'light' ? '#111827' : 'white' }]}
                 placeholder={t('login:email')}
                 placeholderTextColor="#9CA3AF"
                 value={email}
@@ -141,10 +207,10 @@ export default function SignupScreen({ navigation }) {
             </View>
 
             {/* Password Input */}
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
               <Text style={styles.inputIcon}>🔒</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme === 'light' ? '#111827' : 'white' }]}
                 placeholder={t('login:password')}
                 placeholderTextColor="#9CA3AF"
                 value={password}
@@ -161,10 +227,10 @@ export default function SignupScreen({ navigation }) {
             </View>
 
             {/* Confirm Password Input */}
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
               <Text style={styles.inputIcon}>🔐</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme === 'light' ? '#111827' : 'white' }]}
                 placeholder={t('login:confirmPassword') || 'Confirm Password'}
                 placeholderTextColor="#9CA3AF"
                 value={confirmPassword}
@@ -182,12 +248,13 @@ export default function SignupScreen({ navigation }) {
 
             {/* Role Selection */}
             <View style={styles.roleContainer}>
-              <Text style={styles.roleLabel}>{t('login:iAmA') || 'I am a:'}</Text>
+              <Text style={[styles.roleLabel, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>{t('login:iAmA') || 'I am a:'}</Text>
               <View style={styles.roleButtons}>
                 <TouchableOpacity
                   style={[
                     styles.roleButton,
-                    role === 'student' && styles.roleButtonActive,
+                    { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' },
+                    role === 'student' && (theme === 'light' ? styles.roleButtonActive : styles.roleButtonActiveDark),
                   ]}
                   onPress={() => setRole('student')}
                   disabled={localLoading}
@@ -195,6 +262,7 @@ export default function SignupScreen({ navigation }) {
                   <Text
                     style={[
                       styles.roleText,
+                      { color: theme === 'light' ? '#6B7280' : '#9CA3AF' },
                       role === 'student' && styles.roleTextActive,
                     ]}
                   >
@@ -205,7 +273,8 @@ export default function SignupScreen({ navigation }) {
                 <TouchableOpacity
                   style={[
                     styles.roleButton,
-                    role === 'teacher' && styles.roleButtonActive,
+                    { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' },
+                    role === 'teacher' && (theme === 'light' ? styles.roleButtonActive : styles.roleButtonActiveDark),
                   ]}
                   onPress={() => setRole('teacher')}
                   disabled={localLoading}
@@ -213,6 +282,7 @@ export default function SignupScreen({ navigation }) {
                   <Text
                     style={[
                       styles.roleText,
+                      { color: theme === 'light' ? '#6B7280' : '#9CA3AF' },
                       role === 'teacher' && styles.roleTextActive,
                     ]}
                   >
@@ -246,7 +316,7 @@ export default function SignupScreen({ navigation }) {
 
             {/* Login Link */}
             <View style={styles.footer}>
-              <Text style={styles.footerText}>{t('login:alreadyHaveAccount') || 'Already have an account?'} </Text>
+              <Text style={[styles.footerText, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>{t('login:alreadyHaveAccount') || 'Already have an account?'} </Text>
               <TouchableOpacity onPress={() => navigation.navigate('Login')}>
                 <Text style={styles.link}>{t('login:signIn')}</Text>
               </TouchableOpacity>
@@ -262,6 +332,50 @@ export default function SignupScreen({ navigation }) {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
+  },
+  topBar: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    left: 20,
+    zIndex: 2,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  toggleGroup: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  toggleBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 2,
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleLeft: {
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+    borderRightWidth: 1,
+  },
+  toggleRight: {
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+    borderLeftWidth: 1,
+  },
+  toggleBtnActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  toggleBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   container: {
     flex: 1,
@@ -297,13 +411,6 @@ const styles = StyleSheet.create({
     color: '#FFF',
     opacity: 0.9,
   },
-  langRow: { flexDirection: 'row', marginTop: 8 },
-  langBtn: { borderWidth: 1, borderColor: '#FFF', paddingHorizontal: 10, paddingVertical: 4 },
-  langBtnActive: { backgroundColor: '#FFF' },
-  langLeft: { borderTopLeftRadius: 6, borderBottomLeftRadius: 6 },
-  langRight: { borderTopRightRadius: 6, borderBottomRightRadius: 6 },
-  langBtnText: { color: '#FFF', fontWeight: '700' },
-  langBtnTextActive: { color: '#667eea' },
   card: {
     backgroundColor: '#FFF',
     borderRadius: 24,
@@ -367,6 +474,10 @@ const styles = StyleSheet.create({
   roleButtonActive: {
     backgroundColor: '#EEF2FF',
     borderColor: '#667eea',
+  },
+  roleButtonActiveDark: {
+    backgroundColor: '#4F46E520',
+    borderColor: '#A5B4FC',
   },
   roleText: {
     fontSize: 14,

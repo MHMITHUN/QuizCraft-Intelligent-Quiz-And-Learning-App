@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { analyticsAPI } from '../../services/api';
 import { useI18n } from '../../i18n';
+import { useTheme } from '../../hooks/useTheme';
 
 export default function HistoryScreen({ navigation }) {
   const { t } = useI18n();
@@ -29,6 +30,7 @@ export default function HistoryScreen({ navigation }) {
   const pulse = useRef(new Animated.Value(0.4)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-20)).current;
+  const { theme } = useTheme();
 
   useEffect(() => {
     // Entrance animations
@@ -135,6 +137,7 @@ export default function HistoryScreen({ navigation }) {
     <TouchableOpacity
       style={[
         styles.filterButton,
+        { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' },
         filter === filterType && styles.filterButtonActive
       ]}
       onPress={() => setFilter(filterType)}
@@ -142,6 +145,7 @@ export default function HistoryScreen({ navigation }) {
     >
       <Text style={[
         styles.filterButtonText,
+        { color: theme === 'light' ? '#6B7280' : '#9CA3AF' },
         filter === filterType && styles.filterButtonTextActive
       ]}>
         {label}
@@ -158,7 +162,8 @@ export default function HistoryScreen({ navigation }) {
       <Animated.View
         style={[
           styles.historyCard,
-          {
+          { 
+            backgroundColor: theme === 'light' ? 'white' : '#1e1e1e',
             opacity: fadeAnim,
             transform: [{
               translateY: fadeAnim.interpolate({
@@ -176,10 +181,10 @@ export default function HistoryScreen({ navigation }) {
         >
           <View style={styles.historyCardHeader}>
             <View style={styles.quizInfo}>
-              <Text style={styles.quizTitle} numberOfLines={2}>
+              <Text style={[styles.quizTitle, { color: theme === 'light' ? '#111827' : 'white' }]} numberOfLines={2}>
                 {item?.quiz?.title || 'Quiz'}
               </Text>
-              <Text style={styles.quizCategory}>
+              <Text style={[styles.quizCategory, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>
                 {item?.quiz?.category || 'General'}
               </Text>
             </View>
@@ -189,7 +194,7 @@ export default function HistoryScreen({ navigation }) {
                 <Text style={styles.gradeEmoji}>{gradeInfo.emoji}</Text>
                 <Text style={styles.gradeText}>{gradeInfo.grade}</Text>
               </View>
-              <Text style={styles.percentageText}>
+              <Text style={[styles.percentageText, { color: theme === 'light' ? '#111827' : 'white' }]}>
                 {Math.round(item.percentage || 0)}%
               </Text>
             </View>
@@ -198,21 +203,21 @@ export default function HistoryScreen({ navigation }) {
           <View style={styles.historyCardMeta}>
             <View style={styles.metaItem}>
               <Ionicons name="time-outline" size={16} color="#6B7280" />
-              <Text style={styles.metaText}>
+              <Text style={[styles.metaText, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>
                 {createdDate.toLocaleDateString()} {createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </Text>
             </View>
             
             <View style={styles.metaItem}>
               <Ionicons name="help-circle-outline" size={16} color="#6B7280" />
-              <Text style={styles.metaText}>
+              <Text style={[styles.metaText, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>
                 {item.totalQuestions || 0} questions
               </Text>
             </View>
             
             <View style={styles.metaItem}>
               <Ionicons name="checkmark-circle-outline" size={16} color="#10B981" />
-              <Text style={styles.metaText}>
+              <Text style={[styles.metaText, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>
                 {item.correctAnswers || 0} correct
               </Text>
             </View>
@@ -225,7 +230,7 @@ export default function HistoryScreen({ navigation }) {
           </View>
           
           <View style={styles.progressContainer}>
-            <View style={styles.progressBar}>
+            <View style={[styles.progressBar, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
               <View 
                 style={[
                   styles.progressFill,
@@ -240,7 +245,7 @@ export default function HistoryScreen({ navigation }) {
         </TouchableOpacity>
         
         <TouchableOpacity 
-          style={styles.retakeButton}
+          style={[styles.retakeButton, { backgroundColor: theme === 'light' ? '#EEF2FF' : '#4F46E520' }]}
           onPress={() => navigation.navigate('TakeQuiz', { id: item.quiz?._id })}
           activeOpacity={0.7}
         >
@@ -253,8 +258,8 @@ export default function HistoryScreen({ navigation }) {
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyEmoji}>📈</Text>
-      <Text style={styles.emptyTitle}>No quiz history yet</Text>
-      <Text style={styles.emptyText}>
+      <Text style={[styles.emptyTitle, { color: theme === 'light' ? '#111827' : 'white' }]}>No quiz history yet</Text>
+      <Text style={[styles.emptyText, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>
         Take your first quiz to see your progress and results here
       </Text>
       <TouchableOpacity 
@@ -280,9 +285,9 @@ export default function HistoryScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme === 'light' ? '#F8FAFC' : '#121212' }]}>
       {/* Header */}
-      <LinearGradient colors={['#4F46E5', '#7C3AED']} style={styles.header}>
+      <LinearGradient colors={theme === 'light' ? ['#4F46E5', '#7C3AED'] : ['#222','#555']} style={styles.header}>
         <Animated.View
           style={[
             styles.headerContent,
@@ -315,14 +320,14 @@ export default function HistoryScreen({ navigation }) {
       </LinearGradient>
 
       {/* Filters */}
-      <View style={styles.filtersContainer}>
+      <View style={[styles.filtersContainer, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
         <View style={styles.filterButtons}>
           {renderFilterButton('all', 'All')}
           {renderFilterButton('passed', 'Passed')}
           {renderFilterButton('failed', 'Failed')}
         </View>
         
-        <Text style={styles.filterCount}>
+        <Text style={[styles.filterCount, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>
           {filteredItems.length} {filteredItems.length === 1 ? 'quiz' : 'quizzes'}
         </Text>
       </View>

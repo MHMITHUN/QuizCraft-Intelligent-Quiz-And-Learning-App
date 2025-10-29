@@ -8,13 +8,18 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../../hooks/useTheme';
+import ThemeToggle from '../../components/ThemeToggle';
+import { useI18n } from '../../i18n';
 
 const { width } = Dimensions.get('window');
 
 import { useAuth } from '../../context/AuthContext';
 export default function WelcomeScreen({ navigation }) {
-  const { guestAccess } = useAuth();
+  const { guestAccess, error } = useAuth();
   const [guestLoading, setGuestLoading] = useState(false);
+  const { theme } = useTheme();
+  const { lang, setLang } = useI18n();
 
   const handleGuestAccess = async () => {
     try {
@@ -35,19 +40,39 @@ export default function WelcomeScreen({ navigation }) {
 
   return (
     <LinearGradient
-      colors={['#667eea', '#764ba2', '#f093fb']}
+      colors={theme === 'light' ? ['#667eea', '#764ba2', '#f093fb'] : ['#222','#555']}
       style={styles.container}
     >
+      <View style={styles.topBar}>
+        <View style={styles.langRow}>
+          <TouchableOpacity 
+            onPress={() => setLang('en')} 
+            style={[styles.langBtn, styles.langLeft, lang === 'en' && styles.langBtnActive, { borderColor: theme === 'light' ? '#4F46E5' : '#A5B4FC' }]}
+          >
+            <Text style={[styles.langBtnText, { color: theme === 'light' ? '#4F46E5' : '#A5B4FC' }, lang === 'en' && styles.langBtnTextActive]}>EN</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => setLang('bn')} 
+            style={[styles.langBtn, styles.langRight, lang === 'bn' && styles.langBtnActive, { borderColor: theme === 'light' ? '#4F46E5' : '#A5B4FC' }]}
+          >
+            <Text style={[styles.langBtnText, { color: theme === 'light' ? '#4F46E5' : '#A5B4FC' }, lang === 'bn' && styles.langBtnTextActive]}>বাংলা</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.themeToggleContainer}>
+          <Text style={{color: theme === 'light' ? 'black' : 'white', marginRight: 10}}>Light/Dark</Text>
+          <ThemeToggle />
+        </View>
+      </View>
       <View style={styles.content}>
         {/* Logo/Icon */}
         <View style={styles.iconContainer}>
-          <View style={styles.iconCircle}>
+          <View style={[styles.iconCircle, { backgroundColor: theme === 'light' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)' }]}>
             <Text style={styles.iconEmoji}>📚</Text>
           </View>
-          <View style={[styles.iconCircle, styles.iconCircle2]}>
+          <View style={[styles.iconCircle, styles.iconCircle2, { backgroundColor: theme === 'light' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)' }]}>
             <Text style={styles.iconEmoji}>🤖</Text>
           </View>
-          <View style={[styles.iconCircle, styles.iconCircle3]}>
+          <View style={[styles.iconCircle, styles.iconCircle3, { backgroundColor: theme === 'light' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)' }]}>
             <Text style={styles.iconEmoji}>✨</Text>
           </View>
         </View>
@@ -60,6 +85,22 @@ export default function WelcomeScreen({ navigation }) {
             Transform any content into interactive quizzes with the power of AI
           </Text>
 
+          {error ? (
+            <View
+              style={[
+                styles.errorBanner,
+                {
+                  backgroundColor: theme === 'light' ? 'rgba(254, 226, 226, 0.9)' : 'rgba(127, 29, 29, 0.8)',
+                  borderColor: theme === 'light' ? '#FCA5A5' : '#F87171'
+                }
+              ]}
+            >
+              <Text style={[styles.errorText, { color: theme === 'light' ? '#7F1D1D' : '#FEE2E2' }]}>
+                {error}
+              </Text>
+            </View>
+          ) : null}
+
           {/* Features */}
           <View style={styles.features}>
             {[
@@ -69,7 +110,7 @@ export default function WelcomeScreen({ navigation }) {
             ].map((feature, index) => (
               <View
                 key={index}
-                style={styles.featureItem}
+                style={[styles.featureItem, { backgroundColor: theme === 'light' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)' }]}
               >
                 <Text style={styles.featureIcon}>{feature.icon}</Text>
                 <Text style={styles.featureText}>{feature.text}</Text>
@@ -85,15 +126,15 @@ export default function WelcomeScreen({ navigation }) {
             onPress={() => navigation.navigate('Signup')}
           >
             <LinearGradient
-              colors={['#FFF', '#F3F4F6']}
+              colors={theme === 'light' ? ['#FFF', '#F3F4F6'] : ['#4F46E5', '#7C3AED']}
               style={styles.buttonPrimary}
             >
-              <Text style={styles.buttonPrimaryText}>Get Started</Text>
+              <Text style={[styles.buttonPrimaryText, { color: theme === 'light' ? '#667eea' : '#FFF' }]}>Get Started</Text>
             </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.buttonSecondary}
+            style={[styles.buttonSecondary, { backgroundColor: theme === 'light' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)', borderColor: theme === 'light' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.5)' }]}
             onPress={() => navigation.navigate('Login')}
           >
             <Text style={styles.buttonSecondaryText}>Sign In</Text>
@@ -114,9 +155,9 @@ export default function WelcomeScreen({ navigation }) {
       </View>
 
       {/* Decorative Elements */}
-      <View style={styles.decoration1} />
-      <View style={styles.decoration2} />
-      <View style={styles.decoration3} />
+      <View style={[styles.decoration1, { backgroundColor: theme === 'light' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)' }]} />
+      <View style={[styles.decoration2, { backgroundColor: theme === 'light' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)' }]} />
+      <View style={[styles.decoration3, { backgroundColor: theme === 'light' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)' }]} />
     </LinearGradient>
   );
 }
@@ -124,6 +165,33 @@ export default function WelcomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  topBar: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    left: 20,
+    zIndex: 2,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  langRow: { flexDirection: 'row' },
+  themeToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  themeToggleContainer: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 2,
+  },
+  themeToggleContainer: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 2,
   },
   content: {
     flex: 1,
@@ -193,6 +261,20 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     lineHeight: 20,
     maxWidth: width - 80,
+  },
+  errorBanner: {
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignSelf: 'stretch',
+    maxWidth: width - 80,
+  },
+  errorText: {
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '600',
   },
   features: {
     marginTop: 30,

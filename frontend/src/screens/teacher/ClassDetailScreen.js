@@ -20,6 +20,7 @@ import { classesAPI } from '../../services/api';
 import { useI18n } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
 import Toast from '../../components/Toast';
+import { useTheme } from '../../hooks/useTheme';
 
 export default function ClassDetailScreen({ route, navigation }) {
   const { id } = route.params || {};
@@ -35,6 +36,7 @@ export default function ClassDetailScreen({ route, navigation }) {
   const [posting, setPosting] = useState(false);
   const [joinRequests, setJoinRequests] = useState([]);
   const [processing, setProcessing] = useState(false);
+  const { theme } = useTheme();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-20)).current;
@@ -185,18 +187,18 @@ export default function ClassDetailScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
         <ActivityIndicator size="large" color="#4F46E5" />
-        <Text style={styles.loadingText}>Loading class details...</Text>
+        <Text style={[styles.loadingText, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>Loading class details...</Text>
       </View>
     );
   }
 
   if (!klass) {
     return (
-      <View style={styles.errorContainer}>
+      <View style={[styles.errorContainer, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
         <Ionicons name="alert-circle" size={64} color="#EF4444" />
-        <Text style={styles.errorText}>Class not found</Text>
+        <Text style={[styles.errorText, { color: theme === 'light' ? '#374151' : 'white' }]}>Class not found</Text>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -208,10 +210,10 @@ export default function ClassDetailScreen({ route, navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
       {/* Header */}
       <LinearGradient
-        colors={['#4F46E5', '#7C3AED', '#EC4899']}
+        colors={theme === 'light' ? ['#4F46E5', '#7C3AED', '#EC4899'] : ['#222','#555']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -294,11 +296,11 @@ export default function ClassDetailScreen({ route, navigation }) {
           >
             <View style={styles.sectionHeader}>
               <Ionicons name="megaphone-outline" size={20} color="#4F46E5" />
-              <Text style={styles.sectionTitle}>Recent Posts</Text>
+              <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>Recent Posts</Text>
             </View>
             
             {klass.posts.slice(0, 3).map((post, index) => (
-              <View key={post._id || index} style={styles.postCard}>
+              <View key={post._id || index} style={[styles.postCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
                 <View style={styles.postHeader}>
                   <View style={styles.teacherAvatar}>
                     <Text style={styles.teacherInitial}>
@@ -306,13 +308,13 @@ export default function ClassDetailScreen({ route, navigation }) {
                     </Text>
                   </View>
                   <View style={styles.postInfo}>
-                    <Text style={styles.postAuthor}>{post.author?.name || 'Teacher'}</Text>
-                    <Text style={styles.postTime}>
+                    <Text style={[styles.postAuthor, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{post.author?.name || 'Teacher'}</Text>
+                    <Text style={[styles.postTime, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>
                       {new Date(post.createdAt).toLocaleDateString()}
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.postMessage}>{post.message}</Text>
+                <Text style={[styles.postMessage, { color: theme === 'light' ? '#374151' : 'white' }]}>{post.message}</Text>
               </View>
             ))}
           </Animated.View>
@@ -327,14 +329,14 @@ export default function ClassDetailScreen({ route, navigation }) {
         >
           <View style={styles.sectionHeader}>
             <Ionicons name="people-outline" size={20} color="#10B981" />
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>
               Students ({klass.students?.length || 0})
             </Text>
           </View>
           
           {klass.students && klass.students.length > 0 ? (
             klass.students.map((student, index) => (
-              <View key={student._id} style={styles.studentCard}>
+              <View key={student._id} style={[styles.studentCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
                 <View style={styles.studentInfo}>
                   <View style={styles.studentAvatar}>
                     <Text style={styles.studentInitial}>
@@ -342,9 +344,9 @@ export default function ClassDetailScreen({ route, navigation }) {
                     </Text>
                   </View>
                   <View style={styles.studentDetails}>
-                    <Text style={styles.studentName}>{student.name}</Text>
-                    <Text style={styles.studentEmail}>{student.email}</Text>
-                    <Text style={styles.studentJoined}>
+                    <Text style={[styles.studentName, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{student.name}</Text>
+                    <Text style={[styles.studentEmail, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>{student.email}</Text>
+                    <Text style={[styles.studentJoined, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>
                       Joined {new Date(student.joinedAt).toLocaleDateString()}
                     </Text>
                   </View>
@@ -361,8 +363,8 @@ export default function ClassDetailScreen({ route, navigation }) {
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="school-outline" size={48} color="#9CA3AF" />
-              <Text style={styles.emptyTitle}>No students yet</Text>
-              <Text style={styles.emptyText}>Share your class code to get students</Text>
+              <Text style={[styles.emptyTitle, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>No students yet</Text>
+              <Text style={[styles.emptyText, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>Share your class code to get students</Text>
             </View>
           )}
         </Animated.View>
@@ -376,7 +378,7 @@ export default function ClassDetailScreen({ route, navigation }) {
         >
           <View style={styles.sectionHeader}>
             <Ionicons name="library-outline" size={20} color="#8B5CF6" />
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>
               Assigned Quizzes ({klass.quizzes?.length || 0})
             </Text>
           </View>
@@ -385,13 +387,13 @@ export default function ClassDetailScreen({ route, navigation }) {
             klass.quizzes.map((quiz, index) => (
               <TouchableOpacity
                 key={quiz._id}
-                style={styles.quizCard}
+                style={[styles.quizCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}
                 onPress={() => navigation.navigate('QuizDetail', { id: quiz._id })}
               >
                 <View style={styles.quizInfo}>
-                  <Text style={styles.quizTitle}>{quiz.title}</Text>
+                  <Text style={[styles.quizTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{quiz.title}</Text>
                   <Text style={styles.quizCategory}>{quiz.category}</Text>
-                  <Text style={styles.quizStats}>
+                  <Text style={[styles.quizStats, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>
                     {quiz.questions?.length} questions • {quiz.attempts || 0} attempts
                   </Text>
                 </View>
@@ -401,8 +403,8 @@ export default function ClassDetailScreen({ route, navigation }) {
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="library-outline" size={48} color="#9CA3AF" />
-              <Text style={styles.emptyTitle}>No quizzes assigned</Text>
-              <Text style={styles.emptyText}>Assign quizzes from your quiz library</Text>
+              <Text style={[styles.emptyTitle, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>No quizzes assigned</Text>
+              <Text style={[styles.emptyText, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>Assign quizzes from your quiz library</Text>
             </View>
           )}
         </Animated.View>
@@ -414,23 +416,23 @@ export default function ClassDetailScreen({ route, navigation }) {
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
+        <View style={[styles.modalContainer, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
+          <View style={[styles.modalHeader, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderBottomColor: theme === 'light' ? '#e2e8f0' : '#272727' }]}>
             <TouchableOpacity onPress={() => setShowCodeModal(false)}>
-              <Ionicons name="close" size={24} color="#374151" />
+              <Ionicons name="close" size={24} color={theme === 'light' ? '#374151' : 'white'} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Class Join Code</Text>
+            <Text style={[styles.modalTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>Class Join Code</Text>
             <TouchableOpacity onPress={generateNewCode}>
               <Ionicons name="refresh" size={24} color="#4F46E5" />
             </TouchableOpacity>
           </View>
           
           <View style={styles.codeModalContent}>
-            <View style={styles.codeDisplay}>
+            <View style={[styles.codeDisplay, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
               <Text style={styles.codeText}>{klass.code}</Text>
             </View>
             
-            <Text style={styles.codeInstructions}>
+            <Text style={[styles.codeInstructions, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>
               Students can join your class using this code
             </Text>
             
@@ -461,12 +463,12 @@ export default function ClassDetailScreen({ route, navigation }) {
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
+        <View style={[styles.modalContainer, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
+          <View style={[styles.modalHeader, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderBottomColor: theme === 'light' ? '#e2e8f0' : '#272727' }]}>
             <TouchableOpacity onPress={() => setShowJoinRequests(false)}>
-              <Ionicons name="close" size={24} color="#374151" />
+              <Ionicons name="close" size={24} color={theme === 'light' ? '#374151' : 'white'} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Join Requests</Text>
+            <Text style={[styles.modalTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>Join Requests</Text>
             <View style={styles.requestsBadge}>
               <Text style={styles.requestsCount}>{joinRequests.length}</Text>
             </View>
@@ -475,7 +477,7 @@ export default function ClassDetailScreen({ route, navigation }) {
           <ScrollView style={styles.requestsList}>
             {joinRequests.length > 0 ? (
               joinRequests.map((request, index) => (
-                <View key={request._id} style={styles.requestCard}>
+                <View key={request._id} style={[styles.requestCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
                   <View style={styles.requestInfo}>
                     <View style={styles.requestAvatar}>
                       <Text style={styles.requestInitial}>
@@ -483,9 +485,9 @@ export default function ClassDetailScreen({ route, navigation }) {
                       </Text>
                     </View>
                     <View style={styles.requestDetails}>
-                      <Text style={styles.requestName}>{request.user?.name}</Text>
-                      <Text style={styles.requestEmail}>{request.user?.email}</Text>
-                      <Text style={styles.requestTime}>
+                      <Text style={[styles.requestName, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{request.user?.name}</Text>
+                      <Text style={[styles.requestEmail, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>{request.user?.email}</Text>
+                      <Text style={[styles.requestTime, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>
                         Requested {new Date(request.createdAt).toLocaleDateString()}
                       </Text>
                     </View>
@@ -513,8 +515,8 @@ export default function ClassDetailScreen({ route, navigation }) {
             ) : (
               <View style={styles.emptyRequests}>
                 <Ionicons name="person-add-outline" size={64} color="#9CA3AF" />
-                <Text style={styles.emptyRequestsTitle}>No join requests</Text>
-                <Text style={styles.emptyRequestsText}>All join requests will appear here</Text>
+                <Text style={[styles.emptyRequestsTitle, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>No join requests</Text>
+                <Text style={[styles.emptyRequestsText, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>All join requests will appear here</Text>
               </View>
             )}
           </ScrollView>
@@ -527,12 +529,12 @@ export default function ClassDetailScreen({ route, navigation }) {
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
+        <View style={[styles.modalContainer, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
+          <View style={[styles.modalHeader, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderBottomColor: theme === 'light' ? '#e2e8f0' : '#272727' }]}>
             <TouchableOpacity onPress={() => setShowPostModal(false)}>
-              <Ionicons name="close" size={24} color="#374151" />
+              <Ionicons name="close" size={24} color={theme === 'light' ? '#374151' : 'white'} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Create Post</Text>
+            <Text style={[styles.modalTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>Create Post</Text>
             <TouchableOpacity 
               onPress={createPost}
               disabled={posting || !postText.trim()}
@@ -550,16 +552,17 @@ export default function ClassDetailScreen({ route, navigation }) {
           
           <View style={styles.postModalContent}>
             <TextInput
-              style={styles.postInput}
+              style={[styles.postInput, { backgroundColor: theme === 'light' ? 'white' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' }]}
               value={postText}
               onChangeText={setPostText}
               placeholder="What would you like to share with your students?"
+              placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
               multiline
               textAlignVertical="top"
               maxLength={1000}
             />
             
-            <Text style={styles.characterCount}>
+            <Text style={[styles.characterCount, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>
               {postText.length}/1000
             </Text>
           </View>

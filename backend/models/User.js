@@ -32,6 +32,9 @@ const userSchema = new mongoose.Schema({
   // 6-digit OTP for password reset
   passwordResetCode: String,
   passwordResetCodeExpires: Date,
+  // Admin 2FA login verification
+  adminLoginCode: String,
+  adminLoginCodeExpires: Date,
   password: {
     type: String,
     required: [true, 'Please provide a password'],
@@ -43,6 +46,7 @@ const userSchema = new mongoose.Schema({
     enum: ['guest', 'student', 'teacher', 'admin'],
     default: 'student'
   },
+  guestTrialExpiresAt: Date,
   subscription: {
     plan: {
       type: String,
@@ -180,6 +184,14 @@ userSchema.methods.generatePasswordResetCode = function() {
   const code = String(Math.floor(100000 + Math.random() * 900000));
   this.passwordResetCode = code;
   this.passwordResetCodeExpires = Date.now() + 15 * 60 * 1000; // 15 minutes
+  return code;
+};
+
+// Generate 6-digit code for admin login verification
+userSchema.methods.generateAdminLoginCode = function() {
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  this.adminLoginCode = code;
+  this.adminLoginCodeExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
   return code;
 };
 

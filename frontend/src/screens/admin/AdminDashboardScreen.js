@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, FlatList } from 'react-native';
+import { View, Text, StyleSheet, Animated, FlatList, TouchableOpacity } from 'react-native';
 import { adminAPI } from '../../services/api';
+import { useTheme } from '../../hooks/useTheme';
 
 export default function AdminDashboardScreen({ navigation }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const pulse = useRef(new Animated.Value(0.4)).current;
+  const { theme } = useTheme();
 
   useEffect(() => {
     Animated.loop(
@@ -26,22 +28,22 @@ export default function AdminDashboardScreen({ navigation }) {
     })();
   }, []);
 
-  const Skeleton = () => (<Animated.View style={[styles.skel, { opacity: pulse }]} />);
+  const Skeleton = () => (<Animated.View style={[styles.skel, { opacity: pulse, backgroundColor: theme === 'light' ? '#E5E7EB' : '#272727' }]} />);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme === 'light' ? '#F9FAFB' : '#121212' }]}>
       {loading ? (
         <View style={{ padding: 16 }}>
           {[...Array(6)].map((_,i)=> <Skeleton key={i} />)}
         </View>
       ) : (
         <View style={{ padding: 16 }}>
-          <Text style={styles.title}>Users</Text>
-          <Text style={styles.line}>Total: {stats?.users?.total || 0} • Active: {stats?.users?.active || 0} • Premium: {stats?.users?.premium || 0}</Text>
+          <Text style={[styles.title, { color: theme === 'light' ? '#111827' : 'white' }]}>Users</Text>
+          <Text style={[styles.line, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>Total: {stats?.users?.total || 0} • Active: {stats?.users?.active || 0} • Premium: {stats?.users?.premium || 0}</Text>
           <TouchableOpacity style={styles.navBtn} onPress={()=>navigation.navigate('AdminUsers', { preset: { isActive: 'true' } })}><Text style={styles.navBtnText}>Active Users</Text></TouchableOpacity>
           <TouchableOpacity style={styles.navBtn} onPress={()=>navigation.navigate('AdminUsers', { preset: { subscription: 'premium' } })}><Text style={styles.navBtnText}>Premium Users</Text></TouchableOpacity>
-          <Text style={styles.title}>Quizzes</Text>
-          <Text style={styles.line}>Total: {stats?.quizzes?.total || 0} • Public: {stats?.quizzes?.public || 0}</Text>
+          <Text style={[styles.title, { color: theme === 'light' ? '#111827' : 'white' }]}>Quizzes</Text>
+          <Text style={[styles.line, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>Total: {stats?.quizzes?.total || 0} • Public: {stats?.quizzes?.public || 0}</Text>
           <TouchableOpacity style={styles.navBtn} onPress={()=>navigation.navigate('AdminQuizzes', { preset: { from, to } })}><Text style={styles.navBtnText}>Quizzes Created This Week</Text></TouchableOpacity>
           <TouchableOpacity style={styles.navBtn} onPress={()=>navigation.navigate('AdminPayments')}><Text style={styles.navBtnText}>View Payments</Text></TouchableOpacity>
           <TouchableOpacity style={styles.navBtn} onPress={()=>navigation.navigate('AdminUsers', { preset: { subscription: 'institutional' } })}><Text style={styles.navBtnText}>Institutional Users</Text></TouchableOpacity>
@@ -52,7 +54,7 @@ export default function AdminDashboardScreen({ navigation }) {
             const to = new Date().toISOString().slice(0,10);
             navigation.navigate('AdminUsers', { preset: { from, to } });
           }}><Text style={styles.navBtnText}>Users Created This Week</Text></TouchableOpacity>
-          <Text style={styles.title}>Activity</Text>
+          <Text style={[styles.title, { color: theme === 'light' ? '#111827' : 'white' }]}>Activity</Text>
           <TouchableOpacity style={styles.navBtn} onPress={()=>{
             const now = new Date();
             const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
@@ -68,7 +70,7 @@ export default function AdminDashboardScreen({ navigation }) {
             const to = new Date().toISOString().slice(0,10);
             navigation.navigate('AdminQuizzes', { preset: { from, to } });
           }}><Text style={styles.navBtnText}>Quizzes Created This Week</Text></TouchableOpacity>
-          <Text style={styles.line}>Total Attempts: {stats?.activity?.totalAttempts || 0}</Text>
+          <Text style={[styles.line, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>Total Attempts: {stats?.activity?.totalAttempts || 0}</Text>
         </View>
       )}
     </View>

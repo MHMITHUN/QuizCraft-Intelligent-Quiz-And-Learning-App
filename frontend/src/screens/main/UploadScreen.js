@@ -5,6 +5,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { quizAPI } from '../../services/api';
 import { useI18n } from '../../i18n';
 import StreamingQuizLoader from '../../components/quiz/StreamingQuizLoader';
+import { useTheme } from '../../hooks/useTheme';
 
 export default function UploadScreen({ navigation }) {
   const { t } = useI18n();
@@ -16,6 +17,7 @@ export default function UploadScreen({ navigation }) {
   const [showContentAdded, setShowContentAdded] = useState(false);
   const [contentFeedback, setContentFeedback] = useState('');
   const [difficulty, setDifficulty] = useState('medium'); // easy, medium, hard
+  const { theme } = useTheme();
   
   // Streaming state
   const [isStreaming, setIsStreaming] = useState(false);
@@ -256,12 +258,12 @@ export default function UploadScreen({ navigation }) {
         />
       </Modal>
 
-      <LinearGradient colors={['#F9FAFB', '#E5E7EB']} style={styles.container}>
+      <LinearGradient colors={theme === 'light' ? ['#F9FAFB', '#E5E7EB'] : ['#121212', '#272727']} style={styles.container}>
         <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.emoji}>🤖</Text>
-          <Text style={styles.title}>{t('upload:generateQuiz')}</Text>
-          <Text style={styles.subtitle}>{t('upload:aiPowered')}</Text>
+          <Text style={[styles.title, { color: theme === 'light' ? '#111827' : 'white' }]}>{t('upload:generateQuiz')}</Text>
+          <Text style={[styles.subtitle, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>{t('upload:aiPowered')}</Text>
           
           {/* Content Added Feedback */}
           {showContentAdded && (
@@ -272,34 +274,35 @@ export default function UploadScreen({ navigation }) {
         </View>
         
         {/* Content Type Selection */}
-        <View style={styles.typeSelector}>
+        <View style={[styles.typeSelector, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
           <TouchableOpacity 
-            style={[styles.typeButton, uploadType === 'text' && styles.typeButtonActive]}
+            style={[styles.typeButton, uploadType === 'text' && (theme === 'light' ? styles.typeButtonActive : styles.typeButtonActiveDark)]}
             onPress={() => setUploadType('text')}
             activeOpacity={0.7}
           >
-            <Text style={[styles.typeButtonText, uploadType === 'text' && styles.typeButtonTextActive]}>
-              📝 Text Input
+            <Text style={[styles.typeButtonText, uploadType === 'text' && (theme === 'light' ? styles.typeButtonTextActive : styles.typeButtonTextActiveDark)]}>
+              📝 {t('upload:textInput')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.typeButton, uploadType === 'file' && styles.typeButtonActive]}
+            style={[styles.typeButton, uploadType === 'file' && (theme === 'light' ? styles.typeButtonActive : styles.typeButtonActiveDark)]}
             onPress={() => setUploadType('file')}
             activeOpacity={0.7}
           >
-            <Text style={[styles.typeButtonText, uploadType === 'file' && styles.typeButtonTextActive]}>
-              📁 File Upload
+            <Text style={[styles.typeButtonText, uploadType === 'file' && (theme === 'light' ? styles.typeButtonTextActive : styles.typeButtonTextActiveDark)]}>
+              📁 {t('upload:fileUpload')}
             </Text>
           </TouchableOpacity>
         </View>
 
         {/* Text Input Section */}
         {uploadType === 'text' && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>📝 {t('upload:fromText')}</Text>
+        <View style={[styles.card, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e' }]}>
+          <Text style={[styles.cardTitle, { color: theme === 'light' ? '#111827' : 'white' }]}>📝 {t('upload:fromText')}</Text>
           <TextInput
-            style={styles.textArea}
+            style={[styles.textArea, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727', color: theme === 'light' ? '#111827' : 'white' }]}
             placeholder={t('upload:fromText')}
+            placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
             multiline
             numberOfLines={8}
             value={text}
@@ -307,40 +310,43 @@ export default function UploadScreen({ navigation }) {
             editable={!loading}
           />
 
-          <Text style={styles.label}>{t('upload:numQuestions')}</Text>
+          <Text style={[styles.label, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>{t('upload:numQuestions')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727', color: theme === 'light' ? '#111827' : 'white' }]}
             placeholder="5"
+            placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
             keyboardType="number-pad"
             value={numQuestions}
             onChangeText={setNumQuestions}
             editable={!loading}
           />
 
-          <Text style={styles.label}>Difficulty Level</Text>
+          <Text style={[styles.label, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>{t('upload:difficultyLevel')}</Text>
           <View style={styles.difficultySelector}>
             {['easy', 'medium', 'hard'].map((level) => (
               <TouchableOpacity
                 key={level}
                 style={[
                   styles.difficultyButton,
+                  { backgroundColor: theme === 'light' ? '#F9FAFB' : '#272727', borderColor: theme === 'light' ? '#E5E7EB' : '#374151' },
                   difficulty === level && styles.difficultyButtonActive,
-                  difficulty === level && level === 'easy' && { borderColor: '#10B981', backgroundColor: '#ECFDF5' },
-                  difficulty === level && level === 'medium' && { borderColor: '#F59E0B', backgroundColor: '#FEF3C7' },
-                  difficulty === level && level === 'hard' && { borderColor: '#EF4444', backgroundColor: '#FEE2E2' },
+                  difficulty === level && level === 'easy' && { borderColor: '#10B981', backgroundColor: theme === 'light' ? '#ECFDF5' : '#10B98120' },
+                  difficulty === level && level === 'medium' && { borderColor: '#F59E0B', backgroundColor: theme === 'light' ? '#FEF3C7' : '#F59E0B20' },
+                  difficulty === level && level === 'hard' && { borderColor: '#EF4444', backgroundColor: theme === 'light' ? '#FEE2E2' : '#EF444420' },
                 ]}
                 onPress={() => setDifficulty(level)}
                 disabled={loading}
               >
                 <Text style={[
                   styles.difficultyButtonText,
+                  { color: theme === 'light' ? '#6B7280' : '#9ca3af' },
                   difficulty === level && level === 'easy' && { color: '#10B981' },
                   difficulty === level && level === 'medium' && { color: '#F59E0B' },
                   difficulty === level && level === 'hard' && { color: '#EF4444' },
                 ]}>
-                  {level === 'easy' && '😊 Easy'}
-                  {level === 'medium' && '🎯 Medium'}
-                  {level === 'hard' && '🔥 Hard'}
+                  {level === 'easy' && `😊 ${t('upload:easy')}`}
+                  {level === 'medium' && `🎯 ${t('upload:medium')}`}
+                  {level === 'hard' && `🔥 ${t('upload:hard')}`}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -367,83 +373,86 @@ export default function UploadScreen({ navigation }) {
 
         {/* File Upload Section */}
         {uploadType === 'file' && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>📄 {t('upload:fromFile')}</Text>
-          <Text style={styles.info}>Upload PDF, Image, Word, or Text file</Text>
+        <View style={[styles.card, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e' }]}>
+          <Text style={[styles.cardTitle, { color: theme === 'light' ? '#111827' : 'white' }]}>📄 {t('upload:fromFile')}</Text>
+          <Text style={[styles.info, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>Upload PDF, Image, Word, or Text file</Text>
           
           {/* File Type Indicators */}
-          <View style={styles.fileTypesContainer}>
+          <View style={[styles.fileTypesContainer, { backgroundColor: theme === 'light' ? '#F8FAFC' : '#272727' }]}>
             <View style={styles.fileType}>
               <Text style={styles.fileTypeEmoji}>📄</Text>
-              <Text style={styles.fileTypeText}>PDF</Text>
+              <Text style={[styles.fileTypeText, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>PDF</Text>
             </View>
             <View style={styles.fileType}>
               <Text style={styles.fileTypeEmoji}>🖼️</Text>
-              <Text style={styles.fileTypeText}>Image</Text>
+              <Text style={[styles.fileTypeText, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>Image</Text>
             </View>
             <View style={styles.fileType}>
               <Text style={styles.fileTypeEmoji}>📄</Text>
-              <Text style={styles.fileTypeText}>Word</Text>
+              <Text style={[styles.fileTypeText, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>Word</Text>
             </View>
             <View style={styles.fileType}>
               <Text style={styles.fileTypeEmoji}>📄</Text>
-              <Text style={styles.fileTypeText}>Text</Text>
+              <Text style={[styles.fileTypeText, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>Text</Text>
             </View>
           </View>
 
           {selectedFile && (
-            <View style={styles.fileInfo}>
-              <Text style={styles.fileName}>📎 {selectedFile.name}</Text>
-              <Text style={styles.fileSize}>
+            <View style={[styles.fileInfo, { backgroundColor: theme === 'light' ? '#EEF2FF' : '#4F46E520' }]}>
+              <Text style={[styles.fileName, { color: theme === 'light' ? '#667eea' : '#A5B4FC' }]}>📎 {selectedFile.name}</Text>
+              <Text style={[styles.fileSize, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>
                 {selectedFile.size ? `${Math.round(selectedFile.size / 1024)} KB` : 'Size unknown'}
               </Text>
               {contentFeedback && (
-                <Text style={styles.fileFeedback}>{contentFeedback}</Text>
+                <Text style={[styles.fileFeedback, { color: theme === 'light' ? '#4F46E5' : '#C7D2FE' }]}>{contentFeedback}</Text>
               )}
             </View>
           )}
 
-          <Text style={styles.label}>Number of Questions</Text>
+          <Text style={[styles.label, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>{t('upload:numQuestions')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727', color: theme === 'light' ? '#111827' : 'white' }]}
             placeholder="5"
+            placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
             keyboardType="number-pad"
             value={numQuestions}
             onChangeText={setNumQuestions}
             editable={!loading}
           />
 
-          <Text style={styles.label}>Difficulty Level</Text>
+          <Text style={[styles.label, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>{t('upload:difficultyLevel')}</Text>
           <View style={styles.difficultySelector}>
             {['easy', 'medium', 'hard'].map((level) => (
               <TouchableOpacity
                 key={level}
                 style={[
                   styles.difficultyButton,
+                  { backgroundColor: theme === 'light' ? '#F9FAFB' : '#272727', borderColor: theme === 'light' ? '#E5E7EB' : '#374151' },
                   difficulty === level && styles.difficultyButtonActive,
-                  difficulty === level && level === 'easy' && { borderColor: '#10B981', backgroundColor: '#ECFDF5' },
-                  difficulty === level && level === 'medium' && { borderColor: '#F59E0B', backgroundColor: '#FEF3C7' },
-                  difficulty === level && level === 'hard' && { borderColor: '#EF4444', backgroundColor: '#FEE2E2' },
+                  difficulty === level && level === 'easy' && { borderColor: '#10B981', backgroundColor: theme === 'light' ? '#ECFDF5' : '#10B98120' },
+                  difficulty === level && level === 'medium' && { borderColor: '#F59E0B', backgroundColor: theme === 'light' ? '#FEF3C7' : '#F59E0B20' },
+                  difficulty === level && level === 'hard' && { borderColor: '#EF4444', backgroundColor: theme === 'light' ? '#FEE2E2' : '#EF444420' },
                 ]}
                 onPress={() => setDifficulty(level)}
                 disabled={loading}
               >
                 <Text style={[
                   styles.difficultyButtonText,
+                  { color: theme === 'light' ? '#6B7280' : '#9ca3af' },
                   difficulty === level && level === 'easy' && { color: '#10B981' },
                   difficulty === level && level === 'medium' && { color: '#F59E0B' },
                   difficulty === level && level === 'hard' && { color: '#EF4444' },
                 ]}>
-                  {level === 'easy' && '😊 Easy'}
-                  {level === 'medium' && '🎯 Medium'}
-                  {level === 'hard' && '🔥 Hard'}
+                  {level === 'easy' && `😊 ${t('upload:easy')}`}
+                  {level === 'medium' && `🎯 ${t('upload:medium')}`}
+                  {level === 'hard' && `🔥 ${t('upload:hard')}`}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
           <TouchableOpacity
-            style={styles.uploadButton}
+            style={[styles.uploadButton, { backgroundColor: theme === 'light' ? '#667eea' : '#4F46E5' }]}
             onPress={pickDocument}
             disabled={loading}
           >
@@ -518,6 +527,9 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  typeButtonActiveDark: {
+    backgroundColor: '#4F46E5',
+  },
   typeButtonText: {
     fontSize: 16,
     fontWeight: '600',
@@ -525,6 +537,9 @@ const styles = StyleSheet.create({
   },
   typeButtonTextActive: {
     color: '#4F46E5',
+  },
+  typeButtonTextActiveDark: {
+    color: 'white',
   },
   card: { backgroundColor: '#FFF', borderRadius: 20, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
   cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 16 },

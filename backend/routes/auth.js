@@ -9,12 +9,13 @@ const {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendVerificationCodeEmail,
-  sendPasswordResetCodeEmail
+  sendPasswordResetCodeEmail,
+  sendAdminLoginCodeEmail
 } = require('../services/emailService');
 
-const generateToken = (id) => {
+const generateToken = (id, expiresIn = process.env.JWT_EXPIRE) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE
+    expiresIn
   });
 };
 
@@ -23,6 +24,7 @@ const buildUserPayload = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
+  guestTrialExpiresAt: user.guestTrialExpiresAt,
   subscription: user.subscription,
   usage: user.usage,
   preferences: user.preferences,
@@ -152,6 +154,33 @@ router.post('/login', [
       });
     }
 
+    // Admin users require 2FA verification
+    if (user.role === 'admin') {
+      // Generate and send 2FA code
+      const code = user.generateAdminLoginCode();
+      await user.save({ validateBeforeSave: false });
+      
+      try {
+        await sendAdminLoginCodeEmail(user, code);
+        return res.status(200).json({
+          success: true,
+          requiresAdminVerification: true,
+          message: 'Admin verification code sent to your email',
+          data: {
+            email: user.email,
+            codeExpiresAt: user.adminLoginCodeExpires
+          }
+        });
+      } catch (emailError) {
+        console.error('Admin 2FA email error:', emailError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to send verification code. Please try again.'
+        });
+      }
+    }
+
+    // Regular users (student/teacher) must have verified email
     if (!user.isEmailVerified) {
       const isExpired = user.emailVerificationExpires && user.emailVerificationExpires < Date.now();
       return res.status(403).json({
@@ -341,6 +370,71 @@ router.post('/verify-email/code', [
   }
 });
 
+// Admin login verification with 2FA code
+router.post('/verify-admin-login', [
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('code').isLength({ min: 6, max: 6 }).withMessage('6-digit code required')
+], async (req, res) => {
+  try {
+    if (!handleValidation(req, res)) return;
+    const { email, code } = req.body;
+    
+    const user = await User.findOne({ email }).select('+password');
+    
+    if (!user || user.role !== 'admin') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid verification attempt' 
+      });
+    }
+    
+    if (!user.adminLoginCode || !user.adminLoginCodeExpires) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No verification code found. Please login again.' 
+      });
+    }
+    
+    if (user.adminLoginCodeExpires < Date.now()) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Verification code expired. Please login again.' 
+      });
+    }
+    
+    if (user.adminLoginCode !== code) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid verification code' 
+      });
+    }
+    
+    // Clear the admin login code
+    user.adminLoginCode = undefined;
+    user.adminLoginCodeExpires = undefined;
+    user.lastLogin = new Date();
+    await user.save({ validateBeforeSave: false });
+    
+    // Generate token and return user data
+    const token = generateToken(user._id);
+    
+    res.json({
+      success: true,
+      message: 'Admin verification successful',
+      data: {
+        user: buildUserPayload(user),
+        token
+      }
+    });
+  } catch (error) {
+    console.error('Admin verification error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error during verification' 
+    });
+  }
+});
+
 router.post('/forgot-password', [
   body('email').isEmail().withMessage('Valid email is required')
 ], async (req, res) => {
@@ -493,15 +587,19 @@ router.put('/update-profile', protect, async (req, res) => {
 
 router.post('/guest-access', async (req, res) => {
   try {
+    const trialDurationMs = 10 * 60 * 1000;
+    const trialExpiry = new Date(Date.now() + trialDurationMs);
+
     const guestUser = await User.create({
       name: 'Guest User',
       email: `guest_${Date.now()}@example.com`,
       password: 'guestpassword',
       role: 'guest',
-      isEmailVerified: true
+      isEmailVerified: true,
+      guestTrialExpiresAt: trialExpiry
     });
 
-    const token = generateToken(guestUser._id);
+    const token = generateToken(guestUser._id, '10m');
 
     res.json({
       success: true,

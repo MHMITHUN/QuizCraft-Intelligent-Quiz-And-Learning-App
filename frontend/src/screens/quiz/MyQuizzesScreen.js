@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Modal } from 'react-native';
 import { quizAPI, classesAPI } from '../../services/api';
 import { useI18n } from '../../i18n';
+import { useTheme } from '../../hooks/useTheme';
 
 export default function MyQuizzesScreen({ route }) {
   const assignToClassId = route?.params?.assignToClassId;
@@ -9,6 +10,7 @@ export default function MyQuizzesScreen({ route }) {
   const [myQuizzes, setMyQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
+  const { theme } = useTheme();
 
   useEffect(() => { (async () => {
     try {
@@ -36,9 +38,9 @@ export default function MyQuizzesScreen({ route }) {
   };
 
   const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <Text style={styles.title}>{item.title}</Text>
-      <Text style={styles.sub}>{item.category}</Text>
+    <View style={[styles.card, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]}>
+      <Text style={[styles.title, { color: theme === 'light' ? '#111827' : 'white' }]}>{item.title}</Text>
+      <Text style={[styles.sub, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>{item.category}</Text>
       {assignToClassId && (
         <TouchableOpacity style={styles.assignBtn} onPress={() => assign(item._id)} disabled={assigning}>
           <Text style={styles.assignText}>{assigning ? '...' : t('teacher:assignToClass')}</Text>
@@ -47,10 +49,10 @@ export default function MyQuizzesScreen({ route }) {
     </View>
   );
 
-  if (loading) return <View style={styles.center}><ActivityIndicator /></View>;
+  if (loading) return <View style={[styles.center, { backgroundColor: theme === 'light' ? '#F9FAFB' : '#121212' }]}><ActivityIndicator /></View>;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme === 'light' ? '#F9FAFB' : '#121212' }]}>
       <FlatList data={myQuizzes} renderItem={renderItem} keyExtractor={(q)=>q._id} contentContainerStyle={{ padding: 16 }} />
     </View>
   );

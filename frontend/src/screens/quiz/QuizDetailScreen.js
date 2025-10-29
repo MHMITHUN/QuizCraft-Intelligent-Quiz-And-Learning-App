@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { quizAPI, classesAPI } from '../../services/api';
 import { useI18n } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../hooks/useTheme';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -35,6 +36,7 @@ export default function QuizDetailScreen({ route, navigation }) {
   const fade = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-20)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  const { theme } = useTheme();
 
   useEffect(() => {
     loadQuizData();
@@ -197,17 +199,17 @@ export default function QuizDetailScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: theme === 'light' ? '#F8FAFC' : '#121212' }]}>
         <ActivityIndicator size="large" color="#4F46E5" />
-        <Text style={styles.loadingText}>Loading quiz details...</Text>
+        <Text style={[styles.loadingText, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>Loading quiz details...</Text>
       </View>
     );
   }
 
   if (!quiz) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>Quiz not found</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: theme === 'light' ? '#F8FAFC' : '#121212' }]}>
+        <Text style={[styles.errorText, { color: theme === 'light' ? '#EF4444' : '#FCA5A5' }]}>Quiz not found</Text>
         <TouchableOpacity 
           style={styles.backButton} 
           onPress={() => navigation.goBack()}
@@ -219,7 +221,7 @@ export default function QuizDetailScreen({ route, navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme === 'light' ? '#F8FAFC' : '#121212' }]}>
       <Animated.View 
         style={[
           styles.content,
@@ -246,32 +248,32 @@ export default function QuizDetailScreen({ route, navigation }) {
               </LinearGradient>
             </View>
             
-            <Text style={styles.title}>{quiz.title}</Text>
+            <Text style={[styles.title, { color: theme === 'light' ? '#111827' : 'white' }]}>{quiz.title}</Text>
             
             {!!quiz.description && (
-              <Text style={styles.description}>{quiz.description}</Text>
+              <Text style={[styles.description, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>{quiz.description}</Text>
             )}
           </View>
 
           {/* Quiz Stats */}
           <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
+            <View style={[styles.statCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
               <View style={styles.statIcon}>
                 <Ionicons name="help-circle" size={24} color="#4F46E5" />
               </View>
-              <Text style={styles.statNumber}>{quiz.questions?.length || 0}</Text>
-              <Text style={styles.statLabel}>Questions</Text>
+              <Text style={[styles.statNumber, { color: theme === 'light' ? '#111827' : 'white' }]}>{quiz.questions?.length || 0}</Text>
+              <Text style={[styles.statLabel, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>Questions</Text>
             </View>
             
-            <View style={styles.statCard}>
+            <View style={[styles.statCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
               <View style={styles.statIcon}>
                 <Ionicons name="folder" size={24} color="#10B981" />
               </View>
-              <Text style={styles.statNumber}>{quiz.category || 'General'}</Text>
-              <Text style={styles.statLabel}>Category</Text>
+              <Text style={[styles.statNumber, { color: theme === 'light' ? '#111827' : 'white' }]}>{quiz.category || 'General'}</Text>
+              <Text style={[styles.statLabel, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>Category</Text>
             </View>
             
-            <View style={styles.statCard}>
+            <View style={[styles.statCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
               <View style={[styles.statIcon, { backgroundColor: getDifficultyColor(quiz.difficulty) + '20' }]}>
                 <Ionicons 
                   name="bar-chart" 
@@ -282,19 +284,19 @@ export default function QuizDetailScreen({ route, navigation }) {
               <Text style={[styles.statNumber, { color: getDifficultyColor(quiz.difficulty) }]}>
                 {quiz.difficulty || 'Medium'}
               </Text>
-              <Text style={styles.statLabel}>Difficulty</Text>
+              <Text style={[styles.statLabel, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>Difficulty</Text>
             </View>
           </View>
 
           {/* Creator Info */}
           {quiz.creator && (
-            <View style={styles.creatorCard}>
+            <View style={[styles.creatorCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
               <Ionicons name="person-circle" size={40} color="#6B7280" />
               <View style={styles.creatorInfo}>
-                <Text style={styles.creatorName}>
+                <Text style={[styles.creatorName, { color: theme === 'light' ? '#111827' : 'white' }]}>
                   Created by {quiz.creator.name || 'Unknown'}
                 </Text>
-                <Text style={styles.createdDate}>
+                <Text style={[styles.createdDate, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>
                   {new Date(quiz.createdAt).toLocaleDateString()}
                 </Text>
               </View>
@@ -321,7 +323,7 @@ export default function QuizDetailScreen({ route, navigation }) {
             {/* Secondary Actions */}
             <View style={styles.secondaryActions}>
               <TouchableOpacity 
-                style={styles.secondaryAction}
+                style={[styles.secondaryAction, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]}
                 onPress={shareQuiz}
                 activeOpacity={0.7}
               >
@@ -330,7 +332,7 @@ export default function QuizDetailScreen({ route, navigation }) {
               </TouchableOpacity>
               
               <TouchableOpacity 
-                style={styles.secondaryAction}
+                style={[styles.secondaryAction, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]}
                 onPress={copyQuizLink}
                 activeOpacity={0.7}
               >
@@ -340,7 +342,7 @@ export default function QuizDetailScreen({ route, navigation }) {
               
               {user?.role === 'teacher' && (
                 <TouchableOpacity 
-                  style={styles.secondaryAction}
+                  style={[styles.secondaryAction, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]}
                   onPress={showAssignQuizModal}
                   activeOpacity={0.7}
                 >
@@ -360,25 +362,25 @@ export default function QuizDetailScreen({ route, navigation }) {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowAssignModal(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Assign Quiz to Class</Text>
+        <View style={[styles.modalContainer, { backgroundColor: theme === 'light' ? '#F8FAFC' : '#121212' }]}>
+          <View style={[styles.modalHeader, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderBottomColor: theme === 'light' ? '#E5E7EB' : '#272727' }]}>
+            <Text style={[styles.modalTitle, { color: theme === 'light' ? '#111827' : 'white' }]}>Assign Quiz to Class</Text>
             <TouchableOpacity 
               onPress={() => setShowAssignModal(false)}
-              style={styles.modalCloseButton}
+              style={[styles.modalCloseButton, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}
             >
               <Ionicons name="close" size={24} color="#6B7280" />
             </TouchableOpacity>
           </View>
           
           <View style={styles.modalContent}>
-            <Text style={styles.modalSubtitle}>
+            <Text style={[styles.modalSubtitle, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>
               Select a class to assign "{quiz.title}" to:
             </Text>
             
             {classes.length === 0 ? (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>No classes available</Text>
+                <Text style={[styles.emptyStateText, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>No classes available</Text>
                 <TouchableOpacity 
                   style={styles.createClassButton}
                   onPress={() => {

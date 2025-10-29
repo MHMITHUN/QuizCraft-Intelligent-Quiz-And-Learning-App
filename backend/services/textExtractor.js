@@ -123,6 +123,38 @@ class TextExtractor {
       .replace(/ {2,}/g, ' ') // Remove multiple spaces
       .trim();
   }
+
+  /**
+   * Detect language from text content
+   * Detects if text contains Bengali/Bangla characters
+   * @param {String} text - Text to analyze
+   * @returns {String} Language code ('bn' for Bengali, 'en' for English)
+   */
+  detectLanguage(text) {
+    if (!text || typeof text !== 'string') {
+      return 'en'; // Default to English
+    }
+
+    // Bengali Unicode range: \u0980-\u09FF
+    const bengaliRegex = /[\u0980-\u09FF]/;
+    
+    // Count Bengali characters
+    const bengaliMatches = text.match(/[\u0980-\u09FF]/g);
+    const bengaliCharCount = bengaliMatches ? bengaliMatches.length : 0;
+    
+    // Count total alphanumeric characters (excluding spaces and punctuation)
+    const totalChars = text.replace(/[\s\d\p{P}]/gu, '').length;
+    
+    // If Bengali characters make up more than 30% of content, consider it Bengali
+    // This threshold balances between pure Bengali content and mixed content
+    if (totalChars > 0 && (bengaliCharCount / totalChars) > 0.3) {
+      console.log(`📝 Language detected: Bengali (${bengaliCharCount}/${totalChars} chars = ${((bengaliCharCount/totalChars)*100).toFixed(1)}%)`);
+      return 'bn';
+    }
+    
+    console.log(`📝 Language detected: English (${bengaliCharCount}/${totalChars} chars = ${totalChars > 0 ? ((bengaliCharCount/totalChars)*100).toFixed(1) : 0}%)`);
+    return 'en';
+  }
 }
 
 module.exports = new TextExtractor();

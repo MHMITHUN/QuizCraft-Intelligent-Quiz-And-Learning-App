@@ -14,6 +14,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../context/AuthContext';
 import { useI18n } from '../../i18n';
+import { useTheme } from '../../hooks/useTheme';
+import ThemeToggle from '../../components/ThemeToggle';
 
 export default function LoginScreen({ navigation }) {
   const { t, setLang, lang } = useI18n();
@@ -21,7 +23,8 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
-  const { login, guestAccess, loading } = useAuth();
+  const { login, guestAccess, loading, error } = useAuth();
+  const { theme } = useTheme();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -29,13 +32,16 @@ export default function LoginScreen({ navigation }) {
       return;
     }
 
+    console.log('[LoginScreen] Attempting login...');
     const result = await login(email, password);
+    console.log('[LoginScreen] Login result:', JSON.stringify(result, null, 2));
     
     if (!result.success) {
+      console.log('[LoginScreen] Login failed:', result.error);
       if (/verify/i.test(String(result.error))) {
         Alert.alert(
           'Email Not Verified',
-          'Please verify your email before logging in. Tap OK to go to verification.',
+          'Please verify your email before logging in.',
           [
             { text: 'Cancel', style: 'cancel' },
             { text: 'OK', onPress: () => navigation.navigate('VerifyEmail', { email }) }
@@ -44,6 +50,18 @@ export default function LoginScreen({ navigation }) {
       } else {
         Alert.alert('Login Failed', result.error);
       }
+    } else if (result.requiresAdminVerification) {
+      // Admin 2FA required - navigate to verification screen
+      console.log('[LoginScreen] Admin 2FA required, navigating to AdminVerification');
+      console.log('[LoginScreen] Email:', result.email);
+      
+      // Small delay to ensure state is cleared and AuthStack is active
+      setTimeout(() => {
+        console.log('[LoginScreen] Navigating now...');
+        navigation.navigate('AdminVerification', { email: result.email });
+      }, 100);
+    } else {
+      console.log('[LoginScreen] Login successful, user should be logged in');
     }
   };
 
@@ -52,12 +70,12 @@ export default function LoginScreen({ navigation }) {
       setGuestLoading(true);
       const result = await guestAccess();
       if (!result.success) {
-        Alert.alert('Error', 'Guest access failed: ' + result.error);
+        Alert.alert(t('common:error'), t('login:guestAccessFailed') + ': ' + result.error);
       }
       // Navigation happens automatically when user state changes
     } catch (error) {
       console.error('Guest access error:', error);
-      Alert.alert('Error', 'Guest access failed');
+      Alert.alert(t('common:error'), t('login:guestAccessFailed'));
     } finally {
       setGuestLoading(false);
     }
@@ -65,35 +83,37 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme === 'light' ? '#F9FAFB' : '#121212' }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.logo}>📚 QuizCraft</Text>
-          <Text style={styles.tagline}>{t('upload:aiPowered')}</Text>
-          <View style={styles.langRow}>
-            <TouchableOpacity 
-              onPress={() => setLang('en')} 
-              style={[styles.langBtn, styles.langLeft, lang === 'en' && styles.langBtnActive]}
-            >
-              <Text style={[styles.langBtnText, lang === 'en' && styles.langBtnTextActive]}>EN</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={() => setLang('bn')} 
-              style={[styles.langBtn, styles.langRight, lang === 'bn' && styles.langBtnActive]}
-            >
-              <Text style={[styles.langBtnText, lang === 'bn' && styles.langBtnTextActive]}>বাংলা</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={[styles.logo, { color: theme === 'light' ? '#111827' : 'white' }]}>📚 QuizCraft</Text>
+          <Text style={[styles.tagline, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>{t('upload:aiPowered')}</Text>
         </View>
 
-        <View style={styles.form}>
-          <Text style={styles.title}>{t('login:title')}</Text>
-          <Text style={styles.subtitle}>{t('login:subtitle')}</Text>
+        <View style={[styles.form, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e' }]}>
+          <Text style={[styles.title, { color: theme === 'light' ? '#111827' : 'white' }]}>{t('login:title')}</Text>
+          <Text style={[styles.subtitle, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>{t('login:subtitle')}</Text>
+
+          {error ? (
+            <View
+              style={[
+                styles.alertBox,
+                {
+                  backgroundColor: theme === 'light' ? '#FEE2E2' : '#7F1D1D',
+                  borderColor: theme === 'light' ? '#FCA5A5' : '#FCA5A5'
+                }
+              ]}
+            >
+              <Text style={[styles.alertText, { color: theme === 'light' ? '#991B1B' : '#FEE2E2' }]}>
+                {error}
+              </Text>
+            </View>
+          ) : null}
 
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme === 'light' ? '#F9FAFB' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#D1D5DB' : '#374151' }]}
             placeholder={t('login:email')}
             placeholderTextColor="#9CA3AF"
             value={email}
@@ -103,9 +123,9 @@ export default function LoginScreen({ navigation }) {
             editable={!loading}
           />
 
-          <View style={styles.passwordContainer}>
+          <View style={[styles.passwordContainer, { backgroundColor: theme === 'light' ? '#F9FAFB' : '#272727', borderColor: theme === 'light' ? '#D1D5DB' : '#374151' }]}>
             <TextInput
-              style={styles.passwordInput}
+              style={[styles.passwordInput, { color: theme === 'light' ? '#111827' : 'white' }]}
               placeholder={t('login:password')}
               placeholderTextColor="#9CA3AF"
               value={password}
@@ -134,14 +154,14 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.guestButton}
+            style={[styles.guestButton, { borderColor: theme === 'light' ? '#4F46E5' : '#A5B4FC' }]}
             onPress={handleGuestAccess}
             disabled={loading || guestLoading}
           >
             {guestLoading ? (
               <ActivityIndicator color="#4F46E5" />
             ) : (
-              <Text style={styles.guestButtonText}>{t('login:continueGuest')}</Text>
+              <Text style={[styles.guestButtonText, { color: theme === 'light' ? '#4F46E5' : '#A5B4FC' }]}>{t('login:continueGuest')}</Text>
             )}
           </TouchableOpacity>
           
@@ -150,20 +170,20 @@ export default function LoginScreen({ navigation }) {
             style={styles.forgotPassword}
             onPress={() => navigation.navigate('ForgotPassword')}
           >
-            <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
+            <Text style={[styles.forgotPasswordText, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>{t('login:forgotPassword')}</Text>
           </TouchableOpacity>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>{t('login:prompt')}</Text>
+            <Text style={[styles.footerText, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>{t('login:prompt')}</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
               <Text style={styles.link}>{t('login:signup')}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Quick Test Credentials */}
-          <View style={styles.testCredentials}>
-            <Text style={styles.testTitle}>Test Credentials:</Text>
-            <Text style={styles.testText}>Admin: sumyasoma@gmail.com / sumya1234</Text>
+          <View style={[styles.testCredentials, { backgroundColor: theme === 'light' ? '#FEF3C7' : '#F59E0B20', borderColor: theme === 'light' ? '#FCD34D' : '#F59E0B' }]}>
+            <Text style={[styles.testTitle, { color: theme === 'light' ? '#92400E' : '#FBBF24' }]}>{t('login:testCredentials')}</Text>
+            <Text style={[styles.testText, { color: theme === 'light' ? '#92400E' : '#FDE68A' }]}>Admin: sumyasoma@gmail.com / sumya1234</Text>
           </View>
         </View>
       </ScrollView>
@@ -175,6 +195,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  topBar: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    left: 20,
+    zIndex: 2,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  langRow: { flexDirection: 'row' },
+  themeToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  themeToggleContainer: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 2,
+  },
+  themeToggleContainer: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 2,
   },
   scrollContent: {
     flexGrow: 1,
@@ -220,6 +267,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6B7280',
     marginBottom: 24,
+  },
+  alertBox: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  alertText: {
+    fontSize: 14,
+    textAlign: 'center',
   },
   input: {
     borderWidth: 1,

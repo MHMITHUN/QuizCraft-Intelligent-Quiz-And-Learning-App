@@ -62,6 +62,8 @@ export const authAPI = {
   // Email verification via OTP
   sendVerificationCode: (email) => api.post('/auth/verify-email/send-code', { email }),
   verifyEmailCode: (email, code) => api.post('/auth/verify-email/code', { email, code }),
+  // Admin 2FA verification
+  verifyAdminLogin: (email, code) => api.post('/auth/verify-admin-login', { email, code }),
 };
 
 // Quiz API

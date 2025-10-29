@@ -4,6 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../hooks/useTheme';
+import ThemeToggle from '../../components/ThemeToggle';
 
 export default function VerifyEmailScreen({ route, navigation }) {
   const initialEmail = route?.params?.email || '';
@@ -11,6 +13,7 @@ export default function VerifyEmailScreen({ route, navigation }) {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const { refreshUser } = useAuth();
+  const { theme } = useTheme();
 
   const submit = async () => {
     const safeEmail = (email ?? '').toString().trim();
@@ -64,7 +67,13 @@ export default function VerifyEmailScreen({ route, navigation }) {
   };
 
   return (
-    <LinearGradient colors={['#667eea', '#764ba2', '#f093fb']} style={styles.gradient}>
+    <LinearGradient colors={theme === 'light' ? ['#667eea', '#764ba2', '#f093fb'] : ['#222','#555']} style={styles.gradient}>
+      <View style={styles.topBar}>
+        <View style={styles.themeToggleContainer}>
+          <Text style={{color: theme === 'light' ? 'black' : 'white', marginRight: 10}}>Light/Dark</Text>
+          <ThemeToggle />
+        </View>
+      </View>
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.content}>
@@ -77,11 +86,11 @@ export default function VerifyEmailScreen({ route, navigation }) {
             </View>
 
             {/* Card */}
-            <View style={styles.card}>
-              <View style={styles.inputContainer}>
+            <View style={[styles.card, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e' }]}>
+              <View style={[styles.inputContainer, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
                 <Text style={styles.inputIcon}>📧</Text>
                 <TextInput 
-                  style={styles.input} 
+                  style={[styles.input, { color: theme === 'light' ? '#111827' : 'white' }]}
                   placeholder="Email" 
                   placeholderTextColor="#9CA3AF" 
                   value={email} 
@@ -92,10 +101,10 @@ export default function VerifyEmailScreen({ route, navigation }) {
                 />
               </View>
 
-              <View style={styles.inputContainer}>
+              <View style={[styles.inputContainer, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
                 <Text style={styles.inputIcon}>🔢</Text>
                 <TextInput 
-                  style={styles.input} 
+                  style={[styles.input, { color: theme === 'light' ? '#111827' : 'white' }]}
                   placeholder="6-digit code" 
                   placeholderTextColor="#9CA3AF" 
                   value={code} 
@@ -131,7 +140,7 @@ export default function VerifyEmailScreen({ route, navigation }) {
                 onPress={resend} 
                 disabled={loading}
               >
-                <Text style={styles.resendText}>Didn't receive the code? Resend</Text>
+                <Text style={[styles.resendText, { color: theme === 'light' ? '#667eea' : '#A5B4FC' }]}>Didn't receive the code? Resend</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -139,7 +148,7 @@ export default function VerifyEmailScreen({ route, navigation }) {
                 onPress={() => navigation.goBack()}
                 disabled={loading}
               >
-                <Text style={styles.backText}>← Back to Signup</Text>
+                <Text style={[styles.backText, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>← Back to Signup</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -152,6 +161,32 @@ export default function VerifyEmailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
+  },
+  topBar: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    left: 20,
+    zIndex: 2,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  themeToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  themeToggleContainer: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 2,
+  },
+  themeToggleContainer: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 2,
   },
   container: { 
     flex: 1,

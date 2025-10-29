@@ -19,6 +19,7 @@ import { useI18n } from '../../i18n';
 import { classesAPI, quizAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Toast from '../../components/Toast';
+import { useTheme } from '../../hooks/useTheme';
 
 // Generate random class code
 const generateRandomCode = () => {
@@ -48,6 +49,7 @@ export default function TeacherDashboardScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [creating, setCreating] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const { theme } = useTheme();
   
   // Form states
   const [className, setClassName] = useState('');
@@ -232,18 +234,18 @@ export default function TeacherDashboardScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
         <ActivityIndicator size="large" color="#4F46E5" />
-        <Text style={styles.loadingText}>Loading your classes...</Text>
+        <Text style={[styles.loadingText, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>Loading your classes...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
       {/* Header */}
       <LinearGradient
-        colors={['#4F46E5', '#7C3AED', '#EC4899']}
+        colors={theme === 'light' ? ['#4F46E5', '#7C3AED', '#EC4899'] : ['#222','#555']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -313,17 +315,17 @@ export default function TeacherDashboardScreen({ navigation }) {
             { transform: [{ translateY: slideAnim }], opacity: fadeAnim }
           ]}
         >
-          <Text style={styles.sectionTitle}>Your Classes</Text>
+          <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>Your Classes</Text>
           
           {classes.length > 0 ? (
             classes.map((cls, index) => (
-              <View key={cls._id} style={styles.classCard}>
+              <View key={cls._id} style={[styles.classCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
                 <View style={styles.classHeader}>
                   <View style={styles.classInfo}>
-                    <Text style={styles.className}>{cls.name}</Text>
+                    <Text style={[styles.className, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{cls.name}</Text>
                     <Text style={styles.classCode}>Code: {cls.code}</Text>
                     {cls.description && (
-                      <Text style={styles.classDescription}>{cls.description}</Text>
+                      <Text style={[styles.classDescription, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>{cls.description}</Text>
                     )}
                   </View>
                   
@@ -338,21 +340,21 @@ export default function TeacherDashboardScreen({ navigation }) {
                 <View style={styles.classStats}>
                   <View style={styles.classStat}>
                     <Ionicons name="people" size={16} color="#6B7280" />
-                    <Text style={styles.classStatText}>
+                    <Text style={[styles.classStatText, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>
                       {cls.students?.length || 0} students
                     </Text>
                   </View>
                   
                   <View style={styles.classStat}>
                     <Ionicons name="library" size={16} color="#6B7280" />
-                    <Text style={styles.classStatText}>
+                    <Text style={[styles.classStatText, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>
                       {cls.quizzes?.length || 0} quizzes
                     </Text>
                   </View>
                   
                   <View style={styles.classStat}>
                     <Ionicons name="time" size={16} color="#6B7280" />
-                    <Text style={styles.classStatText}>
+                    <Text style={[styles.classStatText, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>
                       {new Date(cls.createdAt).toLocaleDateString()}
                     </Text>
                   </View>
@@ -380,8 +382,8 @@ export default function TeacherDashboardScreen({ navigation }) {
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="school-outline" size={64} color="#9CA3AF" />
-              <Text style={styles.emptyTitle}>No classes yet</Text>
-              <Text style={styles.emptyText}>
+              <Text style={[styles.emptyTitle, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>No classes yet</Text>
+              <Text style={[styles.emptyText, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>
                 Create your first class to start teaching with QuizCraft!
               </Text>
               <TouchableOpacity
@@ -401,12 +403,12 @@ export default function TeacherDashboardScreen({ navigation }) {
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
+        <View style={[styles.modalContainer, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
+          <View style={[styles.modalHeader, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderBottomColor: theme === 'light' ? '#e2e8f0' : '#272727' }]}>
             <TouchableOpacity onPress={() => setShowCreateModal(false)}>
-              <Ionicons name="close" size={24} color="#374151" />
+              <Ionicons name="close" size={24} color={theme === 'light' ? '#374151' : 'white'} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Create New Class</Text>
+            <Text style={[styles.modalTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>Create New Class</Text>
             <TouchableOpacity 
               onPress={createClass}
               disabled={creating || !className.trim()}
@@ -424,23 +426,25 @@ export default function TeacherDashboardScreen({ navigation }) {
           
           <ScrollView style={styles.modalContent}>
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Class Name *</Text>
+              <Text style={[styles.formLabel, { color: theme === 'light' ? '#374151' : 'white' }]}>Class Name *</Text>
               <TextInput
-                style={styles.formInput}
+                style={[styles.formInput, { backgroundColor: theme === 'light' ? 'white' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' }]}
                 value={className}
                 onChangeText={setClassName}
                 placeholder="Enter class name (e.g., Mathematics Grade 10)"
+                placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
                 maxLength={50}
               />
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Description (Optional)</Text>
+              <Text style={[styles.formLabel, { color: theme === 'light' ? '#374151' : 'white' }]}>Description (Optional)</Text>
               <TextInput
-                style={[styles.formInput, styles.textArea]}
+                style={[styles.formInput, styles.textArea, { backgroundColor: theme === 'light' ? 'white' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' }]}
                 value={classDescription}
                 onChangeText={setClassDescription}
                 placeholder="Brief description of your class"
+                placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
@@ -449,13 +453,14 @@ export default function TeacherDashboardScreen({ navigation }) {
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Join Code</Text>
+              <Text style={[styles.formLabel, { color: theme === 'light' ? '#374151' : 'white' }]}>Join Code</Text>
               
               <View style={styles.codeOptions}>
                 <TouchableOpacity
                   style={[
                     styles.codeOption,
-                    useRandomCode && styles.codeOptionActive
+                    { backgroundColor: theme === 'light' ? 'white' : '#272727', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' },
+                    useRandomCode && (theme === 'light' ? styles.codeOptionActive : styles.codeOptionActiveDark)
                   ]}
                   onPress={() => {
                     setUseRandomCode(true);
@@ -472,13 +477,14 @@ export default function TeacherDashboardScreen({ navigation }) {
                     size={20} 
                     color={useRandomCode ? "#4F46E5" : "#9CA3AF"} 
                   />
-                  <Text style={styles.codeOptionText}>Generate Random Code</Text>
+                  <Text style={[styles.codeOptionText, { color: theme === 'light' ? '#374151' : 'white' }]}>Generate Random Code</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
                   style={[
                     styles.codeOption,
-                    !useRandomCode && styles.codeOptionActive
+                    { backgroundColor: theme === 'light' ? 'white' : '#272727', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' },
+                    !useRandomCode && (theme === 'light' ? styles.codeOptionActive : styles.codeOptionActiveDark)
                   ]}
                   onPress={() => {
                     setUseRandomCode(false);
@@ -490,19 +496,19 @@ export default function TeacherDashboardScreen({ navigation }) {
                     size={20} 
                     color={!useRandomCode ? "#4F46E5" : "#9CA3AF"} 
                   />
-                  <Text style={styles.codeOptionText}>Custom Code</Text>
+                  <Text style={[styles.codeOptionText, { color: theme === 'light' ? '#374151' : 'white' }]}>Custom Code</Text>
                 </TouchableOpacity>
               </View>
               
               {useRandomCode ? (
                 <View style={styles.generatedCodeContainer}>
-                  <View style={styles.generatedCodeDisplay}>
+                  <View style={[styles.generatedCodeDisplay, { backgroundColor: theme === 'light' ? 'white' : '#272727', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' }]}>
                     <Text style={styles.generatedCodeText}>
                       {generatedCode || 'Generating...'}
                     </Text>
                   </View>
                   <TouchableOpacity
-                    style={styles.regenerateButton}
+                    style={[styles.regenerateButton, { borderColor: theme === 'light' ? '#4F46E5' : '#A5B4FC' }]}
                     onPress={async () => {
                       const newCode = await generateNewCode();
                       if (newCode) setGeneratedCode(newCode);
@@ -516,6 +522,7 @@ export default function TeacherDashboardScreen({ navigation }) {
                   <TextInput
                     style={[
                       styles.formInput,
+                      { backgroundColor: theme === 'light' ? 'white' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' },
                       codeError && styles.formInputError
                     ]}
                     value={customCode}
@@ -525,13 +532,14 @@ export default function TeacherDashboardScreen({ navigation }) {
                       validateCustomCode(upperText);
                     }}
                     placeholder="Enter 4-8 character code (A-Z, 0-9)"
+                    placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
                     maxLength={8}
                     autoCapitalize="characters"
                   />
                   {codeError ? (
                     <Text style={styles.errorText}>{codeError}</Text>
                   ) : null}
-                  <Text style={styles.codeHint}>
+                  <Text style={[styles.codeHint, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>
                     Make it memorable for your students!
                   </Text>
                 </View>
@@ -811,6 +819,10 @@ const styles = StyleSheet.create({
   codeOptionActive: {
     borderColor: '#4F46E5',
     backgroundColor: '#EEF2FF',
+  },
+  codeOptionActiveDark: {
+    borderColor: '#A5B4FC',
+    backgroundColor: '#4F46E520',
   },
   codeOptionText: {
     fontSize: 16,

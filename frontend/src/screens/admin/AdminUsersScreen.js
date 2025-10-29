@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList } from 'react-native';
 import { adminAPI } from '../../services/api';
 import { useI18n } from '../../i18n';
+import { useTheme } from '../../hooks/useTheme';
 
 export default function AdminUsersScreen({ route }) {
   const { t } = useI18n();
@@ -14,6 +15,7 @@ export default function AdminUsersScreen({ route }) {
   const [isActive, setIsActive] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const { theme } = useTheme();
 
   const load = async (p = page) => {
     try {
@@ -39,9 +41,9 @@ export default function AdminUsersScreen({ route }) {
   }, []);
 
   const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <Text style={styles.name}>{item.name} <Text style={styles.muted}>({item.role})</Text></Text>
-      <Text style={styles.muted}>{t('admin:email')}: {item.email}</Text>
+    <View style={[styles.card, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]}>
+      <Text style={[styles.name, { color: theme === 'light' ? '#111827' : 'white' }]}>{item.name} <Text style={styles.muted}>({item.role})</Text></Text>
+      <Text style={[styles.muted, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>{t('admin:email')}: {item.email}</Text>
     </View>
   );
 
@@ -52,22 +54,22 @@ export default function AdminUsersScreen({ route }) {
   const [showTo, setShowTo] = useState(false);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme === 'light' ? '#F9FAFB' : '#121212' }]}>
       <View style={styles.filters}>
-        <TextInput style={styles.input} placeholder={t('admin:search')} value={search} onChangeText={setSearch} />
-        <TextInput style={styles.input} placeholder={t('admin:role')} value={role} onChangeText={setRole} />
-        <TextInput style={styles.input} placeholder={t('admin:subscription')} value={subscription} onChangeText={setSubscription} />
-        <TextInput style={styles.input} placeholder={t('admin:isActive')} value={isActive} onChangeText={setIsActive} />
+        <TextInput style={[styles.input, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]} placeholder={t('admin:search')} value={search} onChangeText={setSearch} placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'} />
+        <TextInput style={[styles.input, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]} placeholder={t('admin:role')} value={role} onChangeText={setRole} placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'} />
+        <TextInput style={[styles.input, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]} placeholder={t('admin:subscription')} value={subscription} onChangeText={setSubscription} placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'} />
+        <TextInput style={[styles.input, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]} placeholder={t('admin:isActive')} value={isActive} onChangeText={setIsActive} placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'} />
         <TouchableOpacity style={styles.btn} onPress={() => load(1)}><Text style={styles.btnText}>{t('admin:filter')}</Text></TouchableOpacity>
       </View>
       <View style={styles.filters}>
         <View style={styles.dateRow}>
-          <TextInput style={[styles.input, { flex: 1 }]} placeholder={t('admin:from')} value={from} onChangeText={setFrom} />
-          <TouchableOpacity style={styles.calBtn} onPress={()=>setShowFrom(true)}><Text>📅</Text></TouchableOpacity>
+          <TextInput style={[styles.input, { flex: 1, backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]} placeholder={t('admin:from')} value={from} onChangeText={setFrom} placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'} />
+          <TouchableOpacity style={[styles.calBtn, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]} onPress={()=>setShowFrom(true)}><Text>📅</Text></TouchableOpacity>
         </View>
         <View style={styles.dateRow}>
-          <TextInput style={[styles.input, { flex: 1 }]} placeholder={t('admin:to')} value={to} onChangeText={setTo} />
-          <TouchableOpacity style={styles.calBtn} onPress={()=>setShowTo(true)}><Text>📅</Text></TouchableOpacity>
+          <TextInput style={[styles.input, { flex: 1, backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]} placeholder={t('admin:to')} value={to} onChangeText={setTo} placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'} />
+          <TouchableOpacity style={[styles.calBtn, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]} onPress={()=>setShowTo(true)}><Text>📅</Text></TouchableOpacity>
         </View>
       </View>
       {DateTimePicker && showFrom && (
@@ -77,10 +79,10 @@ export default function AdminUsersScreen({ route }) {
         <DateTimePicker value={to? new Date(to): new Date()} mode="date" onChange={(e, date)=>{ setShowTo(false); if (date) setTo(date.toISOString().slice(0,10)); }} />
       )}
       <FlatList data={list} keyExtractor={(u)=>u._id} renderItem={renderItem} contentContainerStyle={{ padding: 16 }} />
-      <View style={styles.pager}>
-        <TouchableOpacity style={styles.pagerBtn} onPress={() => { if (page>1) { setPage(page-1); load(page-1);} }}><Text>{t('admin:prev')}</Text></TouchableOpacity>
-        <Text>{t('admin:page')}: {page}</Text>
-        <TouchableOpacity style={styles.pagerBtn} onPress={() => { const np = page+1; setPage(np); load(np);} }><Text>{t('admin:next')}</Text></TouchableOpacity>
+      <View style={[styles.pager, { backgroundColor: theme === 'light' ? '#F9FAFB' : '#121212' }]}>
+        <TouchableOpacity style={[styles.pagerBtn, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]} onPress={() => { if (page>1) { setPage(page-1); load(page-1);} }}><Text style={{ color: theme === 'light' ? '#111827' : 'white' }}>{t('admin:prev')}</Text></TouchableOpacity>
+        <Text style={{ color: theme === 'light' ? '#111827' : 'white' }}>{t('admin:page')}: {page}</Text>
+        <TouchableOpacity style={[styles.pagerBtn, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]} onPress={() => { const np = page+1; setPage(np); load(np);} }><Text style={{ color: theme === 'light' ? '#111827' : 'white' }}>{t('admin:next')}</Text></TouchableOpacity>
       </View>
     </View>
   );
