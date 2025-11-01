@@ -576,6 +576,14 @@ export default function TeacherDashboardScreen({ navigation }) {
       action: () => openCreateModal(),
     },
     {
+      key: 'create-quiz',
+      label: 'Create a quiz',
+      description: 'Upload PDF or create custom quiz',
+      icon: 'document-text',
+      colors: ['#EC4899', '#8B5CF6'],
+      action: () => navigation.navigate('MainTabs', { screen: 'Upload' }),
+    },
+    {
       key: 'assign-quiz',
       label: 'Assign a quiz',
       description: 'Share your latest assessments',
