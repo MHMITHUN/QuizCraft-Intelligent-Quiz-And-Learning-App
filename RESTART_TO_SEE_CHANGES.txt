@@ -1,0 +1,97 @@
+========================================
+   RESTART EXPO TO SEE THE CHANGES
+========================================
+
+The Upload screen has been updated with:
+✨ Beautiful animations
+🎨 Colorful gradients  
+💎 Modern design
+⏱️ Time limit with "min" label
+🏆 Passing score with "%" label
+
+BUT YOU NEED TO RESTART TO SEE IT!
+
+========================================
+
+HOW TO RESTART:
+
+METHOD 1 (Recommended):
+-----------------------
+1. In your Expo terminal (the one running npm start)
+2. Press "Ctrl + C" to stop
+3. Run:  npm start
+4. Wait for it to start
+5. Press "r" to reload
+
+METHOD 2 (Quick reload):
+-----------------------
+1. Shake your phone
+2. Tap "Reload"
+3. Wait for app to restart
+
+METHOD 3 (Full restart):
+-----------------------
+1. Close the app completely
+2. Reopen from phone
+3. Scan QR code again
+
+========================================
+
+AFTER RESTART YOU WILL SEE:
+
+✨ Pulsing sparkles badge (animated!)
+🌈 Blue → Purple → Pink gradient background
+💎 Beautiful settings card with icons
+⏱️ "Time Limit" with clock icon and "min" suffix
+🏆 "Passing Score" with trophy icon and "%" suffix  
+🎨 Smooth entrance animations
+📱 Professional shadows and modern design
+
+========================================
+
+WHAT THE SETTINGS DO:
+
+⏱️ TIME LIMIT:
+- How many minutes students have to complete quiz
+- Default: 30 minutes
+- Range: 0-300 minutes
+- Shows as "30 min" not just "30"
+
+🏆 PASSING SCORE:
+- Minimum score needed to pass quiz
+- Default: 60%
+- Range: 1-100%
+- Shows as "60%" not just "60"
+
+Both settings are WORKING and sent to backend!
+
+========================================
+
+EXAMPLE:
+--------
+If you set:
+- Time: 45 minutes
+- Pass: 75%
+
+Then students:
+- Have 45 minutes to finish
+- Need 75% or more to pass
+- See timer counting down
+- Get pass/fail based on score
+
+========================================
+
+TRY IT NOW:
+
+1. ✅ Restart Expo (see above)
+2. ✅ Go to Upload tab
+3. ✅ See beautiful animations
+4. ✅ Set time: 30 min
+5. ✅ Set score: 60%
+6. ✅ Upload PDF
+7. ✅ Generate quiz
+8. ✅ Quiz uses your settings!
+
+========================================
+
+RESTART NOW TO SEE THE MAGIC! ✨🚀

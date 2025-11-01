@@ -46,9 +46,9 @@ router.post('/upload-and-generate', protect, upload.single('file'), async (req, 
     // Validate text length
     textExtractor.validateText(cleanedText, 100);
 
-    // Auto-detect language from content if not explicitly provided
-    const detectedLanguage = language || textExtractor.detectLanguage(cleanedText);
-    console.log(`🌐 Using language: ${detectedLanguage}`);
+    // Auto-detect language from content if not explicitly provided or if 'auto'
+    const detectedLanguage = (language && language !== 'auto') ? language : textExtractor.detectLanguage(cleanedText);
+    console.log(`🌐 Detected language: ${detectedLanguage}`);
 
     // Generate quiz using Gemini AI
     console.log('🤖 Generating quiz with AI...');
@@ -203,9 +203,9 @@ router.post('/stream-upload-and-generate', protect, upload.single('file'), async
     textExtractor.validateText(cleanedText, 100);
     send({ event: 'extracted', length: cleanedText.length });
 
-    // Auto-detect language from content
-    const detectedLanguage = language || textExtractor.detectLanguage(cleanedText);
-    console.log(`🌐 Using language: ${detectedLanguage}`);
+    // Auto-detect language from content if not provided or if 'auto'
+    const detectedLanguage = (language && language !== 'auto') ? language : textExtractor.detectLanguage(cleanedText);
+    console.log(`🌐 Detected language: ${detectedLanguage}`);
     send({ event: 'language-detected', language: detectedLanguage });
 
     const timeLimitParsed = Number.parseInt(timeLimit, 10);
@@ -335,9 +335,9 @@ router.post('/generate-from-text', protect, async (req, res) => {
       });
     }
 
-    // Auto-detect language from content
-    const detectedLanguage = language || textExtractor.detectLanguage(text);
-    console.log(`🌐 Using language: ${detectedLanguage}`);
+    // Auto-detect language from content if not provided or if 'auto'
+    const detectedLanguage = (language && language !== 'auto') ? language : textExtractor.detectLanguage(text);
+    console.log(`🌐 Detected language: ${detectedLanguage}`);
 
     // Generate quiz
     const quizResult = await geminiService.generateQuiz({
@@ -455,9 +455,9 @@ router.post('/stream-from-text', protect, async (req, res) => {
 
     send({ event: 'ready' });
 
-    // Auto-detect language from content
-    const detectedLanguage = language || textExtractor.detectLanguage(text);
-    console.log(`🌐 Using language: ${detectedLanguage}`);
+    // Auto-detect language from content if not provided or if 'auto'
+    const detectedLanguage = (language && language !== 'auto') ? language : textExtractor.detectLanguage(text);
+    console.log(`🌐 Detected language: ${detectedLanguage}`);
     send({ event: 'language-detected', language: detectedLanguage });
 
     const timeLimitParsed = Number.parseInt(timeLimit, 10);

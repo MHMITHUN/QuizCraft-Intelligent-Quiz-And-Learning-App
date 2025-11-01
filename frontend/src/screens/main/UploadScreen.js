@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   TextInput,
   Modal,
+  Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as DocumentPicker from 'expo-document-picker';
@@ -49,6 +50,51 @@ export default function UploadScreen({ navigation, route }) {
   const textSecondary = isLight ? '#6B7280' : '#9CA3AF';
   const mutedBackground = isLight ? '#F3F4F6' : '#1F2937';
   const placeholderColor = isLight ? '#9CA3AF' : '#6B7280';
+
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    // Entrance animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Pulse animation for badge
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
 
   const handleNumQuestionsChange = (value) => {
     const digits = (value ?? '').toString().replace(/[^0-9]/g, '');
@@ -174,6 +220,29 @@ export default function UploadScreen({ navigation, route }) {
     setLoading(false);
     Alert.alert(t('common:appName'), message || 'Failed to generate quiz');
   };
+  
+  // Detect language from text content
+  const detectLanguage = (content) => {
+    if (!content) return 'en';
+    
+    // Count Bengali (Bangla) characters
+    const banglaRegex = /[\u0980-\u09FF]/g;
+    const banglaMatches = content.match(banglaRegex) || [];
+    
+    // Count English characters
+    const englishRegex = /[a-zA-Z]/g;
+    const englishMatches = content.match(englishRegex) || [];
+    
+    // If more than 30% of characters are Bengali, it's Bengali content
+    const totalChars = content.length;
+    const banglaPercentage = (banglaMatches.length / totalChars) * 100;
+    
+    if (banglaPercentage > 10) {
+      return 'bn'; // Bengali
+    }
+    
+    return 'en'; // Default to English
+  };
 
   const generateFromText = async () => {
     const safeText = (text ?? '').toString();
@@ -183,6 +252,7 @@ export default function UploadScreen({ navigation, route }) {
     }
 
     const safeNum = Number.parseInt(numQuestions, 10) || 5;
+    const detectedLang = detectLanguage(safeText);
 
     resetStreamingState();
 
@@ -193,7 +263,7 @@ export default function UploadScreen({ navigation, route }) {
           numQuestions: safeNum,
           quizType: 'mcq',
           difficulty,
-          language: 'en',
+          language: detectedLang,
           timeLimit: getTimeLimitValue(),
           passingScore: getPassingScoreValue(),
         },
@@ -267,7 +337,7 @@ export default function UploadScreen({ navigation, route }) {
       formData.append('numQuestions', String(Number.parseInt(numQuestions, 10) || 5));
       formData.append('quizType', 'mcq');
       formData.append('difficulty', difficulty);
-      formData.append('language', 'en');
+      formData.append('language', 'auto'); // Let backend detect from file content
       formData.append('timeLimit', String(getTimeLimitValue()));
       formData.append('passingScore', String(getPassingScoreValue()));
 
@@ -349,14 +419,37 @@ export default function UploadScreen({ navigation, route }) {
       </Modal>
 
       <LinearGradient
-        colors={isLight ? ['#F9FAFB', '#E5E7EB'] : ['#0f172a', '#1f2937']}
+        colors={isLight ? ['#F0F9FF', '#E0E7FF', '#F3E8FF'] : ['#0f172a', '#1e1b4b', '#1f2937']}
         style={styles.container}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-            <View style={[styles.headerBadge, { backgroundColor: isLight ? '#EEF2FF' : '#1E1B4B' }]}>
-              <Ionicons name="sparkles" size={22} color="#4F46E5" />
-            </View>
+          <Animated.View 
+            style={[
+              styles.header,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }, { scale: scaleAnim }]
+              }
+            ]}
+          >
+            <Animated.View 
+              style={[
+                styles.headerBadge, 
+                { 
+                  backgroundColor: isLight ? '#EEF2FF' : '#1E1B4B',
+                  transform: [{ scale: pulseAnim }]
+                }
+              ]}
+            >
+              <LinearGradient
+                colors={['#6366F1', '#8B5CF6', '#EC4899']}
+                style={styles.badgeGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Ionicons name="sparkles" size={24} color="#FFFFFF" />
+              </LinearGradient>
+            </Animated.View>
             <Text style={[styles.title, { color: textPrimary }]}>{t('upload:generateQuiz')}</Text>
             <Text style={[styles.subtitle, { color: textSecondary }]}>{t('upload:aiPowered')}</Text>
 
@@ -383,55 +476,76 @@ export default function UploadScreen({ navigation, route }) {
                 </Text>
               </View>
             ) : null}
-          </View>
+          </Animated.View>
 
-          <View
+          <Animated.View
             style={[
               styles.constraintsCard,
-              { backgroundColor: surfaceColor, borderColor },
+              { 
+                backgroundColor: surfaceColor, 
+                borderColor,
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+              },
             ]}
           >
-            <Text style={[styles.constraintsTitle, { color: textPrimary }]}>
-              {t('upload:quizSettings') ?? 'Quiz settings'}
-            </Text>
+            <View style={styles.constraintsTitleRow}>
+              <LinearGradient
+                colors={['#3B82F6', '#06B6D4']}
+                style={styles.constraintsIconBadge}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Ionicons name="settings-outline" size={18} color="#FFFFFF" />
+              </LinearGradient>
+              <Text style={[styles.constraintsTitle, { color: textPrimary }]}>
+                {t('upload:quizSettings') ?? 'Quiz Settings'}
+              </Text>
+            </View>
             <View style={styles.constraintsGrid}>
               <View style={styles.constraintField}>
-                <Text style={[styles.label, { color: textSecondary }]}>
-                  {t('upload:timeLimit') ?? 'Time limit (minutes)'}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    { backgroundColor: mutedBackground, color: textPrimary },
-                  ]}
-                  keyboardType="number-pad"
-                  value={timeLimit}
-                  onChangeText={handleTimeLimitChange}
-                  placeholder="30"
-                  placeholderTextColor={placeholderColor}
-                  editable={!loading}
-                />
+                <View style={styles.labelRow}>
+                  <Ionicons name="time-outline" size={16} color="#3B82F6" />
+                  <Text style={[styles.label, { color: textSecondary }]}>
+                    {t('upload:timeLimit') ?? 'Time Limit'}
+                  </Text>
+                </View>
+                <View style={[styles.inputWrapper, { backgroundColor: mutedBackground }]}>
+                  <TextInput
+                    style={[styles.input, { color: textPrimary }]}
+                    keyboardType="number-pad"
+                    value={timeLimit}
+                    onChangeText={handleTimeLimitChange}
+                    placeholder="30"
+                    placeholderTextColor={placeholderColor}
+                    editable={!loading}
+                  />
+                  <Text style={[styles.inputSuffix, { color: textSecondary }]}>min</Text>
+                </View>
               </View>
 
               <View style={styles.constraintField}>
-                <Text style={[styles.label, { color: textSecondary }]}>
-                  {t('upload:passingScore') ?? 'Passing score (%)'}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    { backgroundColor: mutedBackground, color: textPrimary },
-                  ]}
-                  keyboardType="number-pad"
-                  value={passingScore}
-                  onChangeText={handlePassingScoreChange}
-                  placeholder="60"
-                  placeholderTextColor={placeholderColor}
-                  editable={!loading}
-                />
+                <View style={styles.labelRow}>
+                  <Ionicons name="trophy-outline" size={16} color="#F59E0B" />
+                  <Text style={[styles.label, { color: textSecondary }]}>
+                    {t('upload:passingScore') ?? 'Pass Score'}
+                  </Text>
+                </View>
+                <View style={[styles.inputWrapper, { backgroundColor: mutedBackground }]}>
+                  <TextInput
+                    style={[styles.input, { color: textPrimary }]}
+                    keyboardType="number-pad"
+                    value={passingScore}
+                    onChangeText={handlePassingScoreChange}
+                    placeholder="60"
+                    placeholderTextColor={placeholderColor}
+                    editable={!loading}
+                  />
+                  <Text style={[styles.inputSuffix, { color: textSecondary }]}>%</Text>
+                </View>
               </View>
             </View>
-          </View>
+          </Animated.View>
 
           <View
             style={[
@@ -779,8 +893,16 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   headerBadge: {
-    padding: 14,
-    borderRadius: 16,
+    borderRadius: 24,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  badgeGradient: {
+    padding: 18,
+    borderRadius: 24,
   },
   title: {
     fontSize: 28,
@@ -809,15 +931,32 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   constraintsCard: {
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    padding: 16,
+    padding: 20,
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  constraintsTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  constraintsIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   constraintsTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 12,
+    fontSize: 18,
+    fontWeight: '800',
   },
   constraintsGrid: {
     flexDirection: 'row',
@@ -826,16 +965,39 @@ const styles = StyleSheet.create({
   constraintField: {
     flex: 1,
   },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
   label: {
     fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 6,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  inputWrapper: {
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   input: {
-    borderRadius: 12,
+    flex: 1,
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
+    paddingVertical: 14,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  inputSuffix: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   typeSelector: {
     flexDirection: 'row',

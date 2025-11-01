@@ -26,9 +26,6 @@ export default function TakeQuizScreen({ route, navigation }) {
   const [progressAnim] = useState(new Animated.Value(0));
   const startTimeRef = useRef(Date.now());
   const { theme } = useTheme();
-  const [timeRemaining, setTimeRemaining] = useState(null);
-  const [timeUp, setTimeUp] = useState(false);
-  const timerRef = useRef(null);
 
   // Anti-plagiarism configuration
   const PROCTORING_ENABLED = true; // Set to false to disable
@@ -73,11 +70,6 @@ export default function TakeQuizScreen({ route, navigation }) {
         setQuiz(q);
         setAnswers(new Array(q?.questions?.length || 0).fill(null));
         
-        // Initialize timer if timeLimit exists (in minutes)
-        if (q?.timeLimit && q.timeLimit > 0) {
-          setTimeRemaining(q.timeLimit * 60); // Convert to seconds
-        }
-        
         // Start entrance animation
         Animated.parallel([
           Animated.timing(fadeAnim, {
@@ -110,47 +102,8 @@ export default function TakeQuizScreen({ route, navigation }) {
       if (PROCTORING_ENABLED) {
         stopMonitoring();
       }
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
     };
   }, [id]);
-  
-  // Timer countdown effect
-  useEffect(() => {
-    if (timeRemaining === null || timeRemaining <= 0 || loading) return;
-    
-    timerRef.current = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          setTimeUp(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [timeRemaining !== null, loading]);
-  
-  // Auto-submit when time is up
-  useEffect(() => {
-    if (timeUp && !submitting) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      Alert.alert(
-        'Time\'s Up!',
-        'Quiz time has ended. Submitting automatically...',
-        [{ text: 'OK' }]
-      );
-      setTimeout(() => {
-        handleTimeUpSubmit();
-      }, 1000);
-    }
-  }, [timeUp]);
 
   useEffect(() => {
     if (quiz?.questions?.length) {
@@ -163,37 +116,6 @@ export default function TakeQuizScreen({ route, navigation }) {
     }
   }, [answers, quiz]);
 
-  // Handle time-up submission
-  const handleTimeUpSubmit = async () => {
-    if (submitting) return;
-    
-    try {
-      setSubmitting(true);
-      stopMonitoring();
-      
-      const timeTaken = Math.floor((Date.now() - startTimeRef.current) / 1000);
-      const proctoringData = PROCTORING_ENABLED ? {
-        violations: violations,
-        violationCount: violationCount,
-        maxViolationsReached: false,
-        flaggedForReview: violationCount > 0,
-        autoSubmitted: true,
-        timeExpired: true,
-      } : { autoSubmitted: true, timeExpired: true };
-      
-      const res = await quizAPI.submit(id, answers, timeTaken, proctoringData);
-      const historyId = res?.data?.data?.historyId;
-      
-      navigation.replace('QuizResult', { 
-        historyId,
-        timeExpired: true,
-      });
-    } catch (e) {
-      console.error('Time-up submit error:', e);
-      setSubmitting(false);
-    }
-  };
-  
   // Auto-submit when max violations reached
   useEffect(() => {
     if (isMaxViolationsReached && !submitting) {
@@ -409,34 +331,14 @@ export default function TakeQuizScreen({ route, navigation }) {
         <View style={styles.headerContent}>
           <View style={styles.titleRow}>
             <Text style={[styles.title, { color: theme === 'light' ? '#111827' : 'white' }]} numberOfLines={1}>{quiz?.title}</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {timeRemaining !== null && (
-                <View style={[
-                  styles.timerBadge,
-                  { backgroundColor: timeRemaining < 60 ? '#FEE2E2' : (timeRemaining < 300 ? '#FEF3C7' : '#DBEAFE') }
-                ]}>
-                  <Ionicons 
-                    name="time-outline" 
-                    size={16} 
-                    color={timeRemaining < 60 ? '#DC2626' : (timeRemaining < 300 ? '#D97706' : '#2563EB')} 
-                  />
-                  <Text style={[
-                    styles.timerText,
-                    { color: timeRemaining < 60 ? '#DC2626' : (timeRemaining < 300 ? '#D97706' : '#2563EB') }
-                  ]}>
-                    {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
-                  </Text>
-                </View>
-              )}
-              {PROCTORING_ENABLED && (
-                <ViolationBadge 
-                  violationCount={violationCount} 
-                  maxViolations={maxViolations}
-                />
-              )}
-            </View>
+            {PROCTORING_ENABLED && (
+              <ViolationBadge 
+                violationCount={violationCount} 
+                maxViolations={maxViolations}
+              />
+            )}
           </View>
-          <ProgressIndicator
+          <ProgressIndicator 
             currentStep={currentQuestionIndex}
             totalSteps={totalCount}
             answeredCount={answeredCount}
@@ -746,19 +648,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
-  },
-  timerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 16,
-    gap: 4,
-  },
-  timerText: {
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 0.5,
   },
   submittingOverlay: {
     position: 'absolute',
