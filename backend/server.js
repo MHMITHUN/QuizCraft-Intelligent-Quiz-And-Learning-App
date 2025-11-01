@@ -8,9 +8,11 @@ const path = require('path');
 const connectDB = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 
-// Load environment variables from root directory first, then backend
-dotenv.config({ path: path.join(__dirname, '../.env') }); // Root config
-dotenv.config(); // Backend config (will not override existing vars)
+// Load environment variables
+// 1. Root-level defaults (shared across apps)
+dotenv.config({ path: path.join(__dirname, '../.env') });
+// 2. Backend-specific overrides (wins when both define the same key)
+dotenv.config({ path: path.join(__dirname, '.env'), override: true });
 
 // Initialize Express app
 const app = express();

@@ -1,41 +1,108 @@
 import React, { createContext, useState, useContext, useEffect, useRef, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI } from '../services/api';
+import { navigationRef } from '../utils/navigationRef';
 
 const AuthContext = createContext({});
 
 export const useAuth = () => useContext(AuthContext);
 
+const HOME_ROUTES_BY_ROLE = {
+  admin: 'AdminDashboard',
+  teacher: 'TeacherDashboard',
+};
+
+const getHomeRouteForRole = (role) => HOME_ROUTES_BY_ROLE[role] || 'MainTabs';
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // loading = action-level loading (login/verify/etc), NOT app boot
+  const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(true);
   const [error, setError] = useState(null);
+  const [admin2FAInProgress, setAdmin2FAInProgress] = useState(false);
   const guestTrialTimerRef = useRef(null);
   const guestTrialIntervalRef = useRef(null);
   const [guestTrialRemaining, setGuestTrialRemaining] = useState(null);
 
-  // Load user from storage on app start
-  useEffect(() => {
-    loadUser();
+  const navigateToRoleHome = useCallback((role) => {
+    const targetRoute = getHomeRouteForRole(role);
+
+    const tryNavigate = (attempt = 0) => {
+      if (!navigationRef.isReady()) {
+        if (attempt < 8) {
+          setTimeout(() => tryNavigate(attempt + 1), 150);
+        } else {
+          console.warn('[AuthContext] Navigation not ready after authentication. Skipping redirect.');
+        }
+        return;
+      }
+
+      const rootState = navigationRef.getRootState?.();
+      const availableRoutes = rootState?.routeNames ?? [];
+
+      if (!availableRoutes.includes(targetRoute)) {
+        if (attempt < 8) {
+          setTimeout(() => tryNavigate(attempt + 1), 150);
+        } else {
+          console.warn(`[AuthContext] Target route "${targetRoute}" not available in current navigator. Skipping redirect.`);
+        }
+        return;
+      }
+
+      const currentRouteName = navigationRef.getCurrentRoute()?.name;
+      if (currentRouteName !== targetRoute) {
+        navigationRef.reset({
+          index: 0,
+          routes: [{ name: targetRoute }],
+        });
+      }
+    };
+
+    // Allow React Navigation time to mount the authenticated navigator before resetting
+    setTimeout(() => tryNavigate(), 80);
   }, []);
 
-  const loadUser = async () => {
+  const loadUser = useCallback(async ({ autoNavigate = false } = {}) => {
     try {
       const token = await AsyncStorage.getItem('token');
       if (token) {
-        const response = await authAPI.getProfile();
-        setUser(response.data.data.user);
+        try {
+          const response = await authAPI.getProfile();
+          const fetchedUser = response.data.data.user;
+          setUser(fetchedUser);
+          if (autoNavigate && fetchedUser) {
+            navigateToRoleHome(fetchedUser.role);
+          }
+        } catch (err) {
+          // Token is invalid or expired
+          console.error('Load user error:', err);
+          await AsyncStorage.removeItem('token');
+          setUser(null);
+          // Don't set error state for expired tokens on startup - just silently log out
+          if (err?.response?.status === 401) {
+            console.log('[AuthContext] Token expired, user needs to log in again');
+          } else {
+            // Only set error for other types of errors
+            if (err?.message && !err.message.includes('token')) {
+              setError(err.message);
+            }
+          }
+        }
+      } else {
+        setUser(null);
       }
     } catch (err) {
-      console.error('Load user error:', err);
-      await AsyncStorage.removeItem('token');
-      if (err?.message) {
-        setError(err.message);
-      }
+      console.error('Load user storage error:', err);
     } finally {
-      setLoading(false);
+      setInitializing(false);
     }
-  };
+  }, [navigateToRoleHome]);
+
+  // Load user from storage on app start
+  useEffect(() => {
+    loadUser();
+  }, [loadUser]);
 
   const login = async (email, password) => {
     try {
@@ -49,6 +116,7 @@ export const AuthProvider = ({ children }) => {
       // Check if admin 2FA is required
       if (response.data.requiresAdminVerification) {
         console.log('[AuthContext] Admin 2FA detected');
+        setAdmin2FAInProgress(true); // Mark that we're in 2FA flow
         setLoading(false);
         return { 
           success: true, 
@@ -59,15 +127,35 @@ export const AuthProvider = ({ children }) => {
         };
       }
       
-      const { user, token } = response.data.data;
+      const { user: responseUser, token } = response.data.data || {};
       if (token) {
         await AsyncStorage.setItem('token', String(token));
       } else {
         await AsyncStorage.removeItem('token');
       }
-      setUser(user);
+      let resolvedUser = responseUser;
+
+      if (!resolvedUser) {
+        try {
+          const profileResponse = await authAPI.getProfile();
+          resolvedUser = profileResponse.data?.data?.user ?? null;
+        } catch (profileError) {
+          console.error('[AuthContext] Failed to fetch profile after login:', profileError);
+        }
+      }
+
+      if (!resolvedUser) {
+        const fallbackMessage = 'Login succeeded but we could not load your profile. Please try again.';
+        setError(fallbackMessage);
+        await AsyncStorage.removeItem('token');
+        return { success: false, error: fallbackMessage };
+      }
+
+      setUser(resolvedUser);
+      setAdmin2FAInProgress(false);
+      navigateToRoleHome(resolvedUser.role);
       
-      return { success: true };
+      return { success: true, user: resolvedUser };
     } catch (err) {
       const errorMsg = err.message || 'Login failed';
       setError(errorMsg);
@@ -83,13 +171,25 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       const response = await authAPI.verifyAdminLogin(email, code);
       
-      const { user, token } = response.data.data;
+      const { user: verifiedUser, token } = response.data.data || {};
       if (token) {
         await AsyncStorage.setItem('token', String(token));
+      } else {
+        await AsyncStorage.removeItem('token');
       }
-      setUser(user);
+
+      if (!verifiedUser) {
+        await AsyncStorage.removeItem('token');
+        const errorMsg = 'Verification succeeded but no user data was returned.';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
+      }
+
+      setUser(verifiedUser);
+      setAdmin2FAInProgress(false); // Clear 2FA flag
+      navigateToRoleHome(verifiedUser.role);
       
-      return { success: true };
+      return { success: true, user: verifiedUser };
     } catch (err) {
       const errorMsg = err.message || 'Verification failed';
       setError(errorMsg);
@@ -146,11 +246,24 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       const response = await authAPI.guestAccess();
 
-      const { user, token } = response.data.data;
-      await AsyncStorage.setItem('token', token);
-      setUser(user);
+      const { user: guestUser, token } = response.data.data || {};
+      if (token) {
+        await AsyncStorage.setItem('token', String(token));
+      } else {
+        await AsyncStorage.removeItem('token');
+      }
 
-      return { success: true };
+      if (!guestUser) {
+        await AsyncStorage.removeItem('token');
+        const errorMsg = 'Guest access response did not include user data.';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
+      }
+
+      setUser(guestUser);
+      navigateToRoleHome(guestUser.role);
+
+      return { success: true, user: guestUser };
     } catch (err) {
       const errorMsg = err.message || 'Guest access failed';
       setError(errorMsg);
@@ -231,16 +344,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const refreshUser = useCallback(() => loadUser({ autoNavigate: true }), [loadUser]);
+
   const value = {
     user,
     loading,
+    initializing,
     error,
+    admin2FAInProgress,
     login,
     register,
     logout,
     guestAccess,
     updateProfile,
-    refreshUser: loadUser,
+    refreshUser,
     guestTrialRemaining,
     verifyAdminLogin,
   };

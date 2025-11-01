@@ -43,26 +43,6 @@ export default function WelcomeScreen({ navigation }) {
       colors={theme === 'light' ? ['#667eea', '#764ba2', '#f093fb'] : ['#222','#555']}
       style={styles.container}
     >
-      <View style={styles.topBar}>
-        <View style={styles.langRow}>
-          <TouchableOpacity 
-            onPress={() => setLang('en')} 
-            style={[styles.langBtn, styles.langLeft, lang === 'en' && styles.langBtnActive, { borderColor: theme === 'light' ? '#4F46E5' : '#A5B4FC' }]}
-          >
-            <Text style={[styles.langBtnText, { color: theme === 'light' ? '#4F46E5' : '#A5B4FC' }, lang === 'en' && styles.langBtnTextActive]}>EN</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={() => setLang('bn')} 
-            style={[styles.langBtn, styles.langRight, lang === 'bn' && styles.langBtnActive, { borderColor: theme === 'light' ? '#4F46E5' : '#A5B4FC' }]}
-          >
-            <Text style={[styles.langBtnText, { color: theme === 'light' ? '#4F46E5' : '#A5B4FC' }, lang === 'bn' && styles.langBtnTextActive]}>বাংলা</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.themeToggleContainer}>
-          <Text style={{color: theme === 'light' ? 'black' : 'white', marginRight: 10}}>Light/Dark</Text>
-          <ThemeToggle />
-        </View>
-      </View>
       <View style={styles.content}>
         {/* Logo/Icon */}
         <View style={styles.iconContainer}>
@@ -150,6 +130,14 @@ export default function WelcomeScreen({ navigation }) {
             ) : (
               <Text style={styles.buttonGuestText}>Continue as Guest</Text>
             )}
+          </TouchableOpacity>
+
+          {/* Admin Login Button */}
+          <TouchableOpacity
+            style={[styles.adminLoginButton, { backgroundColor: theme === 'light' ? '#EF4444' : '#DC2626' }]}
+            onPress={() => navigation.navigate('AdminLogin')}
+          >
+            <Text style={styles.adminLoginButtonText}>🔐 Admin Login</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -341,6 +329,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#FFF',
     opacity: 0.8,
+  },
+  adminLoginButton: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: '#EF4444',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  adminLoginButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFF',
   },
   decoration1: {
     position: 'absolute',

@@ -1,0 +1,77 @@
+========================================
+  NETWORK ERROR FIX - FOLLOW THESE STEPS
+========================================
+
+PROBLEM: "Network Error" when uploading PDF
+
+SOLUTION:
+
+STEP 1: RELOAD YOUR APP
+========================
+On your phone:
+1. Shake your device
+2. Tap "Reload" in the menu
+3. Wait for app to restart
+
+OR
+
+Press 'r' in the Expo terminal on your computer
+
+
+STEP 2: CHECK CONNECTION
+========================
+Your backend is running at:
+http://192.168.0.107:5000
+
+The app should now connect properly!
+
+
+STEP 3: TEST UPLOAD
+========================
+1. Login as student
+2. Go to Upload tab
+3. Upload a small PDF (< 1MB first)
+4. Configure: 5 questions, Medium
+5. Tap "Generate Quiz"
+6. Should work now! ✅
+
+
+IF STILL NOT WORKING:
+========================
+
+1. Make sure your phone is on the SAME WiFi network as your computer
+   - Phone WiFi: Check settings
+   - Computer WiFi: Should be same network
+
+2. Restart the Expo server:
+   - In Expo terminal, press Ctrl+C
+   - Run: npm start
+   - Scan QR code again
+
+3. Check firewall is open (already done):
+   ✅ Firewall rule added for port 5000
+
+4. Verify backend is running:
+   - Backend terminal should show: "QuizCraft Server running on port 5000"
+
+
+TROUBLESHOOTING:
+========================
+
+Error: "Cannot connect"
+→ Check same WiFi network
+
+Error: "Timeout"  
+→ Firewall might be blocking (already fixed)
+
+Error: "Failed to fetch"
+→ Reload app (shake device → Reload)
+
+
+========================================
+YOUR BACKEND URL: http://192.168.0.107:5000
+FIREWALL: ✅ Open
+NETWORK: ✅ Ready
+
+NOW RELOAD YOUR APP AND TRY AGAIN! 🚀
+========================================

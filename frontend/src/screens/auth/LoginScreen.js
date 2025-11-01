@@ -32,12 +32,9 @@ export default function LoginScreen({ navigation }) {
       return;
     }
 
-    console.log('[LoginScreen] Attempting login...');
     const result = await login(email, password);
-    console.log('[LoginScreen] Login result:', JSON.stringify(result, null, 2));
     
     if (!result.success) {
-      console.log('[LoginScreen] Login failed:', result.error);
       if (/verify/i.test(String(result.error))) {
         Alert.alert(
           'Email Not Verified',
@@ -51,18 +48,16 @@ export default function LoginScreen({ navigation }) {
         Alert.alert('Login Failed', result.error);
       }
     } else if (result.requiresAdminVerification) {
-      // Admin 2FA required - navigate to verification screen
-      console.log('[LoginScreen] Admin 2FA required, navigating to AdminVerification');
-      console.log('[LoginScreen] Email:', result.email);
-      
-      // Small delay to ensure state is cleared and AuthStack is active
-      setTimeout(() => {
-        console.log('[LoginScreen] Navigating now...');
-        navigation.navigate('AdminVerification', { email: result.email });
-      }, 100);
-    } else {
-      console.log('[LoginScreen] Login successful, user should be logged in');
+      // Admin detected - they should use Admin Login screen
+      Alert.alert(
+        'Admin Account Detected',
+        'Please use the Admin Login for admin accounts.',
+        [
+          { text: 'OK', onPress: () => navigation.navigate('AdminLogin') }
+        ]
+      );
     }
+    // Navigation to dashboard happens automatically via NavigationStateHandler
   };
 
   const handleGuestAccess = async () => {
@@ -86,7 +81,10 @@ export default function LoginScreen({ navigation }) {
       style={[styles.container, { backgroundColor: theme === 'light' ? '#F9FAFB' : '#121212' }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.header}>
           <Text style={[styles.logo, { color: theme === 'light' ? '#111827' : 'white' }]}>📚 QuizCraft</Text>
           <Text style={[styles.tagline, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>{t('upload:aiPowered')}</Text>
@@ -180,11 +178,14 @@ export default function LoginScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* Quick Test Credentials */}
-          <View style={[styles.testCredentials, { backgroundColor: theme === 'light' ? '#FEF3C7' : '#F59E0B20', borderColor: theme === 'light' ? '#FCD34D' : '#F59E0B' }]}>
-            <Text style={[styles.testTitle, { color: theme === 'light' ? '#92400E' : '#FBBF24' }]}>{t('login:testCredentials')}</Text>
-            <Text style={[styles.testText, { color: theme === 'light' ? '#92400E' : '#FDE68A' }]}>Admin: sumyasoma@gmail.com / sumya1234</Text>
-          </View>
+          {/* Admin Login Button */}
+          <TouchableOpacity
+            style={[styles.adminLoginButton, { backgroundColor: theme === 'light' ? '#EF4444' : '#DC2626' }]}
+            onPress={() => navigation.navigate('AdminLogin')}
+          >
+            <Text style={styles.adminLoginButtonText}>🔐 Admin Login</Text>
+          </TouchableOpacity>
+
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -361,6 +362,23 @@ const styles = StyleSheet.create({
     color: '#4F46E5',
     fontSize: 14,
     fontWeight: '600',
+  },
+  adminLoginButton: {
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  adminLoginButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   testCredentials: {
     marginTop: 20,

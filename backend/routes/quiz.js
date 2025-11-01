@@ -19,7 +19,7 @@ const FileDoc = require('../models/File');
  */
 router.post('/upload-and-generate', protect, upload.single('file'), async (req, res) => {
   try {
-    const { numQuestions, quizType, difficulty, language, category } = req.body;
+    const { numQuestions, quizType, difficulty, language, category, timeLimit, passingScore } = req.body;
 
     // Check if user can generate quiz
     if (!req.user.canGenerateQuiz()) {
@@ -72,6 +72,11 @@ router.post('/upload-and-generate', protect, upload.single('file'), async (req, 
     const quizData = quizResult.data;
 
     // Create quiz in database
+    const timeLimitParsed = Number.parseInt(timeLimit, 10);
+    const passingScoreParsed = Number.parseInt(passingScore, 10);
+    const timeLimitValue = Number.isFinite(timeLimitParsed) && timeLimitParsed > 0 ? Math.min(timeLimitParsed, 300) : 30;
+    const passingScoreValue = Number.isFinite(passingScoreParsed) ? Math.min(Math.max(passingScoreParsed, 1), 100) : 60;
+
     const quiz = await Quiz.create({
       title: quizData.title || 'Generated Quiz',
       description: quizData.description || '',
@@ -81,6 +86,8 @@ router.post('/upload-and-generate', protect, upload.single('file'), async (req, 
       tags: await geminiService.extractTopics(cleanedText),
       language: detectedLanguage,
       difficulty: difficulty || 'mixed',
+      timeLimit: timeLimitValue,
+      passingScore: passingScoreValue,
       sourceContent: {
         text: cleanedText.substring(0, 5000),
         filename: req.file.originalname,
@@ -157,7 +164,7 @@ router.post('/upload-and-generate', protect, upload.single('file'), async (req, 
  */
 router.post('/stream-upload-and-generate', protect, upload.single('file'), async (req, res) => {
   try {
-    const { numQuestions, quizType, difficulty, language, category } = req.body;
+    const { numQuestions, quizType, difficulty, language, category, timeLimit, passingScore } = req.body;
 
     if (!req.user.canGenerateQuiz()) {
       res.status(403);
@@ -200,6 +207,11 @@ router.post('/stream-upload-and-generate', protect, upload.single('file'), async
     const detectedLanguage = language || textExtractor.detectLanguage(cleanedText);
     console.log(`🌐 Using language: ${detectedLanguage}`);
     send({ event: 'language-detected', language: detectedLanguage });
+
+    const timeLimitParsed = Number.parseInt(timeLimit, 10);
+    const passingScoreParsed = Number.parseInt(passingScore, 10);
+    const timeLimitValue = Number.isFinite(timeLimitParsed) && timeLimitParsed > 0 ? Math.min(timeLimitParsed, 300) : 30;
+    const passingScoreValue = Number.isFinite(passingScoreParsed) ? Math.min(Math.max(passingScoreParsed, 1), 100) : 60;
 
     const collected = { meta: null, questions: [] };
 
@@ -245,6 +257,8 @@ router.post('/stream-upload-and-generate', protect, upload.single('file'), async
           tags: await geminiService.extractTopics(cleanedText),
           language: detectedLanguage,
           difficulty: difficulty || 'mixed',
+          timeLimit: timeLimitValue,
+          passingScore: passingScoreValue,
           sourceContent: {
             text: cleanedText.substring(0, 5000),
             filename: req.file.originalname,
@@ -304,7 +318,7 @@ router.post('/stream-upload-and-generate', protect, upload.single('file'), async
  */
 router.post('/generate-from-text', protect, async (req, res) => {
   try {
-    const { text, numQuestions, quizType, difficulty, language, category } = req.body;
+    const { text, numQuestions, quizType, difficulty, language, category, timeLimit, passingScore } = req.body;
 
     if (!text || text.trim().length < 100) {
       return res.status(400).json({
@@ -345,6 +359,11 @@ router.post('/generate-from-text', protect, async (req, res) => {
     const quizData = quizResult.data;
 
     // Save quiz
+    const timeLimitParsed = Number.parseInt(timeLimit, 10);
+    const passingScoreParsed = Number.parseInt(passingScore, 10);
+    const timeLimitValue = Number.isFinite(timeLimitParsed) && timeLimitParsed > 0 ? Math.min(timeLimitParsed, 300) : 30;
+    const passingScoreValue = Number.isFinite(passingScoreParsed) ? Math.min(Math.max(passingScoreParsed, 1), 100) : 60;
+
     const quiz = await Quiz.create({
       title: quizData.title || 'Generated Quiz',
       description: quizData.description || '',
@@ -354,6 +373,8 @@ router.post('/generate-from-text', protect, async (req, res) => {
       tags: await geminiService.extractTopics(text),
       language: detectedLanguage,
       difficulty: difficulty || 'mixed',
+      timeLimit: timeLimitValue,
+      passingScore: passingScoreValue,
       sourceContent: {
         text: text.substring(0, 5000),
         fileType: 'text/plain'
@@ -406,7 +427,7 @@ router.post('/generate-from-text', protect, async (req, res) => {
  */
 router.post('/stream-from-text', protect, async (req, res) => {
   try {
-    const { text, numQuestions, quizType, difficulty, language, category } = req.body;
+    const { text, numQuestions, quizType, difficulty, language, category, timeLimit, passingScore } = req.body;
 
     if (!text || text.trim().length < 100) {
       res.status(400);
@@ -438,6 +459,11 @@ router.post('/stream-from-text', protect, async (req, res) => {
     const detectedLanguage = language || textExtractor.detectLanguage(text);
     console.log(`🌐 Using language: ${detectedLanguage}`);
     send({ event: 'language-detected', language: detectedLanguage });
+
+    const timeLimitParsed = Number.parseInt(timeLimit, 10);
+    const passingScoreParsed = Number.parseInt(passingScore, 10);
+    const timeLimitValue = Number.isFinite(timeLimitParsed) && timeLimitParsed > 0 ? Math.min(timeLimitParsed, 300) : 30;
+    const passingScoreValue = Number.isFinite(passingScoreParsed) ? Math.min(Math.max(passingScoreParsed, 1), 100) : 60;
 
     const collected = { meta: null, questions: [] };
 
@@ -482,6 +508,8 @@ router.post('/stream-from-text', protect, async (req, res) => {
           tags: await geminiService.extractTopics(text),
           language: detectedLanguage,
           difficulty: difficulty || 'mixed',
+          timeLimit: timeLimitValue,
+          passingScore: passingScoreValue,
           sourceContent: { text: text.substring(0, 5000), fileType: 'text/plain' }
         });
 

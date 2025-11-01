@@ -11,34 +11,60 @@ const Quiz = require('../models/Quiz');
  */
 router.get('/my-stats', protect, async (req, res) => {
   try {
-    const stats = await QuizHistory.getUserStats(req.user._id);
+    const userId = req.user?._id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Not authorized' });
+    }
+
+    const stats = await QuizHistory.getUserStats(userId);
 
     // Get recent quiz history
-    const recentQuizzes = await QuizHistory.find({ user: req.user._id })
+    const recentQuizzes = await QuizHistory.find({ user: userId })
       .populate('quiz', 'title category')
       .sort({ createdAt: -1 })
       .limit(5);
 
     // Get performance trend (last 10 quizzes)
-    const performanceTrend = await QuizHistory.find({ user: req.user._id })
+    const performanceTrend = await QuizHistory.find({ user: userId })
       .select('percentage completedAt')
       .sort({ completedAt: 1 })
       .limit(10);
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         stats,
         recentQuizzes,
         performanceTrend,
-        userPoints: req.user.points
+        userPoints: req.user.points || 0
       }
     });
   } catch (error) {
     console.error('Stats fetch error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch statistics'
+    });
+  }
+});
+
+/**
+ * @route   GET /api/analytics/stats
+ * @desc    Lightweight stats summary for history screen
+ * @access  Private
+ */
+router.get('/stats', protect, async (req, res) => {
+  try {
+    const stats = await QuizHistory.getUserStats(req.user?._id);
+    return res.json({
+      success: true,
+      data: { stats }
+    });
+  } catch (error) {
+    console.error('Analytics stats error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch stats'
     });
   }
 });

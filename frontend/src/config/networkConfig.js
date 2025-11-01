@@ -23,7 +23,7 @@ function getServerIP() {
   
   // Fallback: Default IP (you should update the root .env instead)
   console.warn('⚠️ Using fallback IP. Please check your root .env file!');
-  return '192.168.203.153';
+  return '127.0.0.1';
 }
 
 function getServerPort() {

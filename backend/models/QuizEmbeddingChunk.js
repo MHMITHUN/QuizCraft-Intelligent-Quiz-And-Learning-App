@@ -10,6 +10,4 @@ const quizEmbeddingChunkSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 }, { collection: 'quizembeddings', timestamps: true });
 
-quizEmbeddingChunkSchema.index({ quizId: 1 });
-
 module.exports = mongoose.model('QuizEmbeddingChunk', quizEmbeddingChunkSchema);

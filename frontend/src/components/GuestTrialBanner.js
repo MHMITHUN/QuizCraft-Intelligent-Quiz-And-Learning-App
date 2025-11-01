@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../hooks/useTheme';
+import { useNavigationState } from '@react-navigation/native';
 
 const TRIAL_DURATION_MS = 10 * 60 * 1000;
 
@@ -20,9 +21,36 @@ const GuestTrialBanner = () => {
   const { theme } = useTheme();
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
+  // Hide on auth screens to avoid appearing over Login/Signup
+  const currentRouteName = useNavigationState((state) => {
+    try {
+      let r = state;
+      while (r?.routes?.[r.index]?.state) {
+        r = r.routes[r.index].state;
+      }
+      return r?.routes?.[r.index]?.name;
+    } catch {
+      return undefined;
+    }
+  });
+  const authScreens = new Set([
+    'Welcome',
+    'Login',
+    'Signup',
+    'VerifyEmail',
+    'ForgotPassword',
+    'AdminLogin',
+    'AdminVerification',
+  ]);
+
   const shouldShow = useMemo(() => {
-    return Boolean(user) && user.role === 'guest' && guestTrialRemaining !== null;
-  }, [user, guestTrialRemaining]);
+    return (
+      Boolean(user) &&
+      user.role === 'guest' &&
+      guestTrialRemaining !== null &&
+      !authScreens.has(currentRouteName)
+    );
+  }, [user, guestTrialRemaining, currentRouteName]);
 
   useEffect(() => {
     if (!shouldShow) {
@@ -88,7 +116,7 @@ const GuestTrialBanner = () => {
           <View style={styles.iconBadge}>
             <Ionicons
               name="time-outline"
-              size={18}
+              size={16}
               color={theme === 'light' ? '#F0F4FF' : '#C7D2FE'}
             />
           </View>
@@ -97,10 +125,6 @@ const GuestTrialBanner = () => {
             <Text style={styles.chipText}>{remainingLabel}</Text>
           </View>
         </View>
-
-        <Text style={styles.message}>
-          You’re exploring QuizCraft in guest mode. Create a free account to keep your progress and unlock more features.
-        </Text>
 
         <View style={styles.progressTrack}>
           <View
@@ -113,7 +137,7 @@ const GuestTrialBanner = () => {
 
         <TouchableOpacity style={styles.button} onPress={handleCreateAccount}>
           <Text style={styles.buttonText}>Upgrade For Free</Text>
-          <Ionicons name="arrow-forward" size={18} color="#111827" />
+          <Ionicons name="arrow-forward" size={16} color="#111827" />
         </TouchableOpacity>
       </LinearGradient>
     </Animated.View>
@@ -123,84 +147,82 @@ const GuestTrialBanner = () => {
 const styles = StyleSheet.create({
   wrapper: {
     flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 16,
+    marginHorizontal: 12,
+    marginTop: 8,
   },
   container: {
     flex: 1,
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     overflow: 'hidden',
   },
   shadowLight: {
     shadowColor: '#4F46E5',
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 16,
-    elevation: 10,
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 6,
   },
   shadowDark: {
     shadowColor: '#0F172A',
-    shadowOpacity: 0.35,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 6,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   iconBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.18)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 8,
   },
   headline: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: '#F9FAFB',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 999,
     backgroundColor: 'rgba(255, 255, 255, 0.22)',
   },
   chipText: {
     color: '#F9FAFB',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   message: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: 'rgba(249, 250, 251, 0.85)',
-    marginBottom: 14,
+    display: 'none',
   },
   progressTrack: {
-    height: 6,
+    height: 4,
     borderRadius: 999,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     overflow: 'hidden',
-    marginBottom: 14,
+    marginBottom: 8,
   },
   progressFill: {
     height: '100%',
     backgroundColor: '#FBBF24',
   },
   button: {
+    alignSelf: 'flex-start',
     backgroundColor: '#F9FAFB',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -208,7 +230,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#111827',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
 });

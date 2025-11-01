@@ -301,6 +301,7 @@ export const paymentsAPI = {
 // Admin Payments
 export const adminPaymentsAPI = {
   list: () => api.get('/payments'),
+  updateStatus: (id, status) => api.put(`/payments/${id}/status`, { status }),
 };
 
 // Subscriptions API

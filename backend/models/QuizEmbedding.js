@@ -32,6 +32,5 @@ const quizEmbeddingSchema = new mongoose.Schema({
 
 // Index for vector search (MongoDB Atlas Vector Search)
 // Note: You need to create a vector search index in Atlas for this to work
-quizEmbeddingSchema.index({ quiz: 1 });
 
 module.exports = mongoose.model('QuizEmbedding', quizEmbeddingSchema);

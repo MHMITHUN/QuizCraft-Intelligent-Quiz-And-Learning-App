@@ -100,7 +100,12 @@ export default function StatsScreen({ navigation }) {
       } catch (e) {
         console.error('Stats fetch error:', e);
         if (!mounted) return;
-        setError(t('common:errorGeneric') || 'Something went wrong');
+        const msg = e?.message || '';
+        if (msg.includes('Not authorized') || msg.includes('Invalid') || msg.includes('expired')) {
+          setError(t('auth:sessionExpired') || 'Session expired. Please sign in again.');
+        } else {
+          setError(t('analytics:failedStatsDescription') || 'Failed to fetch statistics. Please try again.');
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -412,6 +417,9 @@ export default function StatsScreen({ navigation }) {
               <Text style={styles.errorDescription}>
                 {error || t('analytics:failedStatsDescription') || 'Please try again in a moment.'}
               </Text>
+              <TouchableOpacity style={{marginTop: 8}} onPress={() => { setLoading(true); setError(null); analyticsAPI.getMyStats().then(res => { setStatsResponse(res?.data?.data || {}); }).catch(e => { setError(e?.message || 'Failed to load'); }).finally(() => setLoading(false)); }}>
+                <Text style={{color:'#4F46E5', fontWeight:'700'}}>{t('common:retry') || 'Retry'}</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             content

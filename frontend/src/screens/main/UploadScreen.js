@@ -1,25 +1,40 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ScrollView, TextInput, Modal } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  ScrollView,
+  TextInput,
+  Modal,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as DocumentPicker from 'expo-document-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { quizAPI } from '../../services/api';
 import { useI18n } from '../../i18n';
 import StreamingQuizLoader from '../../components/quiz/StreamingQuizLoader';
 import { useTheme } from '../../hooks/useTheme';
 
-export default function UploadScreen({ navigation }) {
+export default function UploadScreen({ navigation, route }) {
   const { t } = useI18n();
+  const { theme } = useTheme();
+  const redirectTo = route?.params?.redirectTo;
+  const redirectParams = route?.params?.redirectParams || {};
+
   const [loading, setLoading] = useState(false);
+  const [uploadType, setUploadType] = useState('text');
   const [text, setText] = useState('');
   const [numQuestions, setNumQuestions] = useState('5');
+  const [difficulty, setDifficulty] = useState('medium');
   const [selectedFile, setSelectedFile] = useState(null);
-  const [uploadType, setUploadType] = useState('text'); // 'text', 'file'
   const [showContentAdded, setShowContentAdded] = useState(false);
   const [contentFeedback, setContentFeedback] = useState('');
-  const [difficulty, setDifficulty] = useState('medium'); // easy, medium, hard
-  const { theme } = useTheme();
-  
-  // Streaming state
+  const [timeLimit, setTimeLimit] = useState('30');
+  const [passingScore, setPassingScore] = useState('60');
+
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamStatus, setStreamStatus] = useState('ready');
   const [questionsGenerated, setQuestionsGenerated] = useState(0);
@@ -27,52 +42,137 @@ export default function UploadScreen({ navigation }) {
   const [quizMetadata, setQuizMetadata] = useState(null);
   const [generatedQuizId, setGeneratedQuizId] = useState(null);
 
+  const isLight = theme === 'light';
+  const surfaceColor = isLight ? '#FFFFFF' : '#1E1E1E';
+  const borderColor = isLight ? '#E5E7EB' : '#272727';
+  const textPrimary = isLight ? '#111827' : '#F9FAFB';
+  const textSecondary = isLight ? '#6B7280' : '#9CA3AF';
+  const mutedBackground = isLight ? '#F3F4F6' : '#1F2937';
+  const placeholderColor = isLight ? '#9CA3AF' : '#6B7280';
+
+  const handleNumQuestionsChange = (value) => {
+    const digits = (value ?? '').toString().replace(/[^0-9]/g, '');
+    setNumQuestions(digits.slice(0, 3));
+  };
+
+  const handleTimeLimitChange = (value) => {
+    const digits = (value ?? '').toString().replace(/[^0-9]/g, '');
+    setTimeLimit(digits.slice(0, 3));
+  };
+
+  const handlePassingScoreChange = (value) => {
+    const digits = (value ?? '').toString().replace(/[^0-9]/g, '');
+    setPassingScore(digits.slice(0, 3));
+  };
+
+  const getTimeLimitValue = () => {
+    const parsed = Number.parseInt(timeLimit, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return 30;
+    }
+    return Math.min(parsed, 300);
+  };
+
+  const getPassingScoreValue = () => {
+    const parsed = Number.parseInt(passingScore, 10);
+    if (!Number.isFinite(parsed)) {
+      return 60;
+    }
+    return Math.min(Math.max(parsed, 1), 100);
+  };
+
   const pickDocument = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/pdf', 'image/*', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+        type: [
+          'application/pdf',
+          'image/*',
+          'text/plain',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ],
         copyToCacheDirectory: true,
       });
-      
-      if (result.type === 'success' || result.assets?.[0]) {
-        const file = result.assets?.[0] || result;
-        setSelectedFile(file);
-        
-        // Determine file type and show feedback
-        let fileType = 'unknown';
-        const mimeType = file.mimeType || '';
-        const fileName = file.name?.toLowerCase() || '';
-        
-        if (mimeType.includes('pdf') || fileName.endsWith('.pdf')) {
-          fileType = 'PDF';
-          setContentFeedback('📄 PDF document selected - text will be extracted for quiz generation');
-        } else if (mimeType.includes('image') || /\.(jpg|jpeg|png|gif|bmp|webp)$/.test(fileName)) {
-          fileType = 'Image';
-          setContentFeedback('🖼️ Image selected - text will be extracted using OCR for quiz generation');
-        } else if (mimeType.includes('text') || fileName.endsWith('.txt')) {
-          fileType = 'Text';
-          setContentFeedback('📄 Text file selected - content will be used for quiz generation');
-        } else if (mimeType.includes('word') || fileName.endsWith('.docx')) {
-          fileType = 'Word';
-          setContentFeedback('📄 Word document selected - text will be extracted for quiz generation');
-        } else {
-          setContentFeedback('📄 File selected - will attempt to extract content for quiz generation');
-        }
-        
-        setShowContentAdded(true);
-        setTimeout(() => setShowContentAdded(false), 3000);
-        
-        // Show success alert
-        Alert.alert(
-          'File Selected',
-          `${fileType} file "${file.name}" has been selected as a resource. The content will be processed to generate quiz questions.`,
-          [{ text: 'OK' }]
-        );
+
+      if (result.type === 'cancel') {
+        return;
       }
+
+      const file = result.assets?.[0] || result;
+      if (!file) return;
+
+      setSelectedFile(file);
+
+      let fileType = 'resource';
+      const mimeType = file.mimeType || '';
+      const fileName = file.name?.toLowerCase() || '';
+
+      if (mimeType.includes('pdf') || fileName.endsWith('.pdf')) {
+        fileType = 'PDF';
+        setContentFeedback('PDF selected. Text will be extracted automatically.');
+      } else if (mimeType.includes('image') || /\.(jpg|jpeg|png|gif|bmp|webp)$/.test(fileName)) {
+        fileType = 'image';
+        setContentFeedback('Image selected. OCR will extract key text for the quiz.');
+      } else if (mimeType.includes('text') || fileName.endsWith('.txt')) {
+        fileType = 'text';
+        setContentFeedback('Plain text selected. Perfect for quick quiz generation.');
+      } else if (mimeType.includes('word') || fileName.endsWith('.docx')) {
+        fileType = 'document';
+        setContentFeedback('Word document selected. We will parse the content for questions.');
+      } else {
+        setContentFeedback('File selected. We will do our best to extract the content.');
+      }
+
+      setShowContentAdded(true);
+      setTimeout(() => setShowContentAdded(false), 3000);
+
+      Alert.alert(
+        t('common:appName'),
+        `Great! Your ${fileType} file "${file.name}" is ready for quiz creation.`,
+        [{ text: 'OK' }]
+      );
     } catch (error) {
       console.error('Document picker error:', error);
-      Alert.alert('Error', 'Failed to select document. Please try again.');
+      Alert.alert(t('common:appName'), 'Failed to select document. Please try again.');
     }
+  };
+
+  const navigateAfterCreation = (quizId) => {
+    if (!quizId) return;
+
+    if (redirectTo) {
+      navigation.navigate(redirectTo, {
+        ...redirectParams,
+        refreshToken: Date.now(),
+        newQuizId: quizId,
+      });
+    } else {
+      navigation.navigate('QuizDetail', { id: quizId });
+    }
+  };
+
+  const resetStreamingState = () => {
+    setIsStreaming(true);
+    setLoading(true);
+    setStreamStatus('ready');
+    setQuestionsGenerated(0);
+    setCurrentQuestion(null);
+    setQuizMetadata(null);
+    setGeneratedQuizId(null);
+  };
+
+  const handleStreamComplete = (quizId) => {
+    setGeneratedQuizId(quizId);
+    setTimeout(() => {
+      setIsStreaming(false);
+      setLoading(false);
+      navigateAfterCreation(quizId);
+    }, 1200);
+  };
+
+  const handleStreamError = (message) => {
+    setIsStreaming(false);
+    setLoading(false);
+    Alert.alert(t('common:appName'), message || 'Failed to generate quiz');
   };
 
   const generateFromText = async () => {
@@ -82,15 +182,9 @@ export default function UploadScreen({ navigation }) {
       return;
     }
 
-    const safeNum = Number.parseInt(numQuestions) || 5;
+    const safeNum = Number.parseInt(numQuestions, 10) || 5;
 
-    // Reset streaming state
-    setIsStreaming(true);
-    setStreamStatus('ready');
-    setQuestionsGenerated(0);
-    setCurrentQuestion(null);
-    setQuizMetadata(null);
-    setGeneratedQuizId(null);
+    resetStreamingState();
 
     try {
       await quizAPI.streamFromText(
@@ -98,59 +192,60 @@ export default function UploadScreen({ navigation }) {
           text: safeText,
           numQuestions: safeNum,
           quizType: 'mcq',
-          difficulty: difficulty,
-          language: 'en'
+          difficulty,
+          language: 'en',
+          timeLimit: getTimeLimitValue(),
+          passingScore: getPassingScoreValue(),
         },
         (event) => {
-          console.log('Stream event:', event);
-          
           switch (event.event) {
             case 'ready':
+            case 'extracting':
               setStreamStatus('generating');
               break;
-            
+
             case 'meta':
               setStreamStatus('generating');
               setQuizMetadata({
                 title: event.data?.title,
                 category: event.data?.category,
-                description: event.data?.description
+                description: event.data?.description,
               });
               break;
-            
+
             case 'question':
               setStreamStatus('question');
               setQuestionsGenerated(event.received || event.index + 1);
               setCurrentQuestion(event.data);
               break;
-            
+
             case 'stream-complete':
               setStreamStatus('saving');
               break;
-            
-            case 'completed':
+
+            case 'completed': {
               setStreamStatus('complete');
               const quizId = event.data?.quiz?.id;
               if (quizId) {
-                setGeneratedQuizId(quizId);
-                setTimeout(() => {
-                  setIsStreaming(false);
-                  navigation.navigate('QuizDetail', { id: quizId });
-                }, 1500);
+                handleStreamComplete(quizId);
+              } else {
+                handleStreamError('Quiz saved but no identifier returned.');
               }
               break;
-            
+            }
+
             case 'error':
-              setIsStreaming(false);
-              Alert.alert('Error', event.message || 'Failed to generate quiz');
+              handleStreamError(event.message);
+              break;
+
+            default:
               break;
           }
         }
       );
     } catch (error) {
       console.error('Generate from text error:', error);
-      setIsStreaming(false);
-      Alert.alert(t('common:appName'), error?.message || 'Failed to generate quiz');
+      handleStreamError(error?.message);
     }
   };
 
@@ -160,13 +255,7 @@ export default function UploadScreen({ navigation }) {
       return;
     }
 
-    // Reset streaming state
-    setIsStreaming(true);
-    setStreamStatus('ready');
-    setQuestionsGenerated(0);
-    setCurrentQuestion(null);
-    setQuizMetadata(null);
-    setGeneratedQuizId(null);
+    resetStreamingState();
 
     try {
       const formData = new FormData();
@@ -175,310 +264,502 @@ export default function UploadScreen({ navigation }) {
         name: selectedFile.name,
         type: selectedFile.mimeType || 'application/octet-stream',
       });
-      formData.append('numQuestions', Number.parseInt(numQuestions) || 5);
+      formData.append('numQuestions', String(Number.parseInt(numQuestions, 10) || 5));
       formData.append('quizType', 'mcq');
       formData.append('difficulty', difficulty);
       formData.append('language', 'en');
+      formData.append('timeLimit', String(getTimeLimitValue()));
+      formData.append('passingScore', String(getPassingScoreValue()));
 
       await quizAPI.streamUploadAndGenerate(formData, (event) => {
-        console.log('Stream event:', event);
-        
         switch (event.event) {
           case 'ready':
             setStreamStatus('ready');
             break;
-          
+
           case 'extracting':
             setStreamStatus('extracting');
             break;
-          
+
           case 'extracted':
-            setStreamStatus('extracted');
-            setTimeout(() => setStreamStatus('generating'), 500);
+            setStreamStatus('generating');
             break;
-          
+
           case 'meta':
             setStreamStatus('generating');
             setQuizMetadata({
               title: event.data?.title,
               category: event.data?.category,
-              description: event.data?.description
+              description: event.data?.description,
             });
             break;
-          
+
           case 'question':
             setStreamStatus('question');
             setQuestionsGenerated(event.received || event.index + 1);
             setCurrentQuestion(event.data);
             break;
-          
+
           case 'stream-complete':
             setStreamStatus('saving');
             break;
-          
-          case 'completed':
+
+          case 'completed': {
             setStreamStatus('complete');
             const quizId = event.data?.quiz?.id;
             if (quizId) {
-              setGeneratedQuizId(quizId);
-              setTimeout(() => {
-                setIsStreaming(false);
-                navigation.navigate('QuizDetail', { id: quizId });
-              }, 1500);
+              handleStreamComplete(quizId);
+            } else {
+              handleStreamError('Quiz saved but no identifier returned.');
             }
             break;
-          
+          }
+
           case 'error':
-            setIsStreaming(false);
-            Alert.alert('Error', event.message || 'Failed to generate quiz');
+            handleStreamError(event.message);
+            break;
+
+          default:
             break;
         }
       });
     } catch (error) {
       console.error('Upload and generate error:', error);
-      setIsStreaming(false);
-      Alert.alert(t('common:appName'), error?.message || 'Failed to generate quiz');
+      handleStreamError(error?.message);
     }
   };
 
+  const FILE_TYPES = [
+    { icon: 'document-text-outline', label: 'PDF' },
+    { icon: 'image-outline', label: 'Image' },
+    { icon: 'document-attach-outline', label: 'Word' },
+    { icon: 'text-outline', label: 'Text' },
+  ];
+
   return (
     <>
-      {/* Streaming Modal */}
-      <Modal
-        visible={isStreaming}
-        animationType="slide"
-        presentationStyle="fullScreen"
-      >
+      <Modal visible={isStreaming} animationType="slide" presentationStyle="fullScreen">
         <StreamingQuizLoader
           status={streamStatus}
           questionsGenerated={questionsGenerated}
-          totalQuestions={Number.parseInt(numQuestions) || 5}
+          totalQuestions={Number.parseInt(numQuestions, 10) || 5}
           currentQuestion={currentQuestion}
           metadata={quizMetadata}
         />
       </Modal>
 
-      <LinearGradient colors={theme === 'light' ? ['#F9FAFB', '#E5E7EB'] : ['#121212', '#272727']} style={styles.container}>
-        <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.emoji}>🤖</Text>
-          <Text style={[styles.title, { color: theme === 'light' ? '#111827' : 'white' }]}>{t('upload:generateQuiz')}</Text>
-          <Text style={[styles.subtitle, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>{t('upload:aiPowered')}</Text>
-          
-          {/* Content Added Feedback */}
-          {showContentAdded && (
-            <View style={styles.contentAddedBanner}>
-              <Text style={styles.contentAddedText}>{contentFeedback}</Text>
+      <LinearGradient
+        colors={isLight ? ['#F9FAFB', '#E5E7EB'] : ['#0f172a', '#1f2937']}
+        style={styles.container}
+      >
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={styles.header}>
+            <View style={[styles.headerBadge, { backgroundColor: isLight ? '#EEF2FF' : '#1E1B4B' }]}>
+              <Ionicons name="sparkles" size={22} color="#4F46E5" />
             </View>
-          )}
-        </View>
-        
-        {/* Content Type Selection */}
-        <View style={[styles.typeSelector, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727' }]}>
-          <TouchableOpacity 
-            style={[styles.typeButton, uploadType === 'text' && (theme === 'light' ? styles.typeButtonActive : styles.typeButtonActiveDark)]}
-            onPress={() => setUploadType('text')}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.typeButtonText, uploadType === 'text' && (theme === 'light' ? styles.typeButtonTextActive : styles.typeButtonTextActiveDark)]}>
-              📝 {t('upload:textInput')}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.typeButton, uploadType === 'file' && (theme === 'light' ? styles.typeButtonActive : styles.typeButtonActiveDark)]}
-            onPress={() => setUploadType('file')}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.typeButtonText, uploadType === 'file' && (theme === 'light' ? styles.typeButtonTextActive : styles.typeButtonTextActiveDark)]}>
-              📁 {t('upload:fileUpload')}
-            </Text>
-          </TouchableOpacity>
-        </View>
+            <Text style={[styles.title, { color: textPrimary }]}>{t('upload:generateQuiz')}</Text>
+            <Text style={[styles.subtitle, { color: textSecondary }]}>{t('upload:aiPowered')}</Text>
 
-        {/* Text Input Section */}
-        {uploadType === 'text' && (
-        <View style={[styles.card, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e' }]}>
-          <Text style={[styles.cardTitle, { color: theme === 'light' ? '#111827' : 'white' }]}>📝 {t('upload:fromText')}</Text>
-          <TextInput
-            style={[styles.textArea, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727', color: theme === 'light' ? '#111827' : 'white' }]}
-            placeholder={t('upload:fromText')}
-            placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
-            multiline
-            numberOfLines={8}
-            value={text}
-            onChangeText={setText}
-            editable={!loading}
-          />
-
-          <Text style={[styles.label, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>{t('upload:numQuestions')}</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727', color: theme === 'light' ? '#111827' : 'white' }]}
-            placeholder="5"
-            placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
-            keyboardType="number-pad"
-            value={numQuestions}
-            onChangeText={setNumQuestions}
-            editable={!loading}
-          />
-
-          <Text style={[styles.label, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>{t('upload:difficultyLevel')}</Text>
-          <View style={styles.difficultySelector}>
-            {['easy', 'medium', 'hard'].map((level) => (
-              <TouchableOpacity
-                key={level}
+            {showContentAdded && contentFeedback ? (
+              <View
                 style={[
-                  styles.difficultyButton,
-                  { backgroundColor: theme === 'light' ? '#F9FAFB' : '#272727', borderColor: theme === 'light' ? '#E5E7EB' : '#374151' },
-                  difficulty === level && styles.difficultyButtonActive,
-                  difficulty === level && level === 'easy' && { borderColor: '#10B981', backgroundColor: theme === 'light' ? '#ECFDF5' : '#10B98120' },
-                  difficulty === level && level === 'medium' && { borderColor: '#F59E0B', backgroundColor: theme === 'light' ? '#FEF3C7' : '#F59E0B20' },
-                  difficulty === level && level === 'hard' && { borderColor: '#EF4444', backgroundColor: theme === 'light' ? '#FEE2E2' : '#EF444420' },
+                  styles.contentAddedBanner,
+                  { backgroundColor: isLight ? '#F0FDF4' : '#064E3B' },
                 ]}
-                onPress={() => setDifficulty(level)}
-                disabled={loading}
               >
-                <Text style={[
-                  styles.difficultyButtonText,
-                  { color: theme === 'light' ? '#6B7280' : '#9ca3af' },
-                  difficulty === level && level === 'easy' && { color: '#10B981' },
-                  difficulty === level && level === 'medium' && { color: '#F59E0B' },
-                  difficulty === level && level === 'hard' && { color: '#EF4444' },
-                ]}>
-                  {level === 'easy' && `😊 ${t('upload:easy')}`}
-                  {level === 'medium' && `🎯 ${t('upload:medium')}`}
-                  {level === 'hard' && `🔥 ${t('upload:hard')}`}
+                <Ionicons
+                  name="checkmark-circle"
+                  size={18}
+                  color={isLight ? '#22C55E' : '#6EE7B7'}
+                  style={styles.bannerIcon}
+                />
+                <Text
+                  style={[
+                    styles.contentAddedText,
+                    { color: isLight ? '#166534' : '#ECFDF5' },
+                  ]}
+                >
+                  {contentFeedback}
                 </Text>
-              </TouchableOpacity>
-            ))}
+              </View>
+            ) : null}
           </View>
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={generateFromText}
-            disabled={loading}
+          <View
+            style={[
+              styles.constraintsCard,
+              { backgroundColor: surfaceColor, borderColor },
+            ]}
           >
-            <LinearGradient
-              colors={['#667eea', '#764ba2']}
-              style={styles.buttonGradient}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={styles.buttonText}>✨ {t('upload:generate')}</Text>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-        )}
-
-        {/* File Upload Section */}
-        {uploadType === 'file' && (
-        <View style={[styles.card, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e' }]}>
-          <Text style={[styles.cardTitle, { color: theme === 'light' ? '#111827' : 'white' }]}>📄 {t('upload:fromFile')}</Text>
-          <Text style={[styles.info, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>Upload PDF, Image, Word, or Text file</Text>
-          
-          {/* File Type Indicators */}
-          <View style={[styles.fileTypesContainer, { backgroundColor: theme === 'light' ? '#F8FAFC' : '#272727' }]}>
-            <View style={styles.fileType}>
-              <Text style={styles.fileTypeEmoji}>📄</Text>
-              <Text style={[styles.fileTypeText, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>PDF</Text>
-            </View>
-            <View style={styles.fileType}>
-              <Text style={styles.fileTypeEmoji}>🖼️</Text>
-              <Text style={[styles.fileTypeText, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>Image</Text>
-            </View>
-            <View style={styles.fileType}>
-              <Text style={styles.fileTypeEmoji}>📄</Text>
-              <Text style={[styles.fileTypeText, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>Word</Text>
-            </View>
-            <View style={styles.fileType}>
-              <Text style={styles.fileTypeEmoji}>📄</Text>
-              <Text style={[styles.fileTypeText, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>Text</Text>
-            </View>
-          </View>
-
-          {selectedFile && (
-            <View style={[styles.fileInfo, { backgroundColor: theme === 'light' ? '#EEF2FF' : '#4F46E520' }]}>
-              <Text style={[styles.fileName, { color: theme === 'light' ? '#667eea' : '#A5B4FC' }]}>📎 {selectedFile.name}</Text>
-              <Text style={[styles.fileSize, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>
-                {selectedFile.size ? `${Math.round(selectedFile.size / 1024)} KB` : 'Size unknown'}
-              </Text>
-              {contentFeedback && (
-                <Text style={[styles.fileFeedback, { color: theme === 'light' ? '#4F46E5' : '#C7D2FE' }]}>{contentFeedback}</Text>
-              )}
-            </View>
-          )}
-
-          <Text style={[styles.label, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>{t('upload:numQuestions')}</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: theme === 'light' ? '#F3F4F6' : '#272727', color: theme === 'light' ? '#111827' : 'white' }]}
-            placeholder="5"
-            placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
-            keyboardType="number-pad"
-            value={numQuestions}
-            onChangeText={setNumQuestions}
-            editable={!loading}
-          />
-
-          <Text style={[styles.label, { color: theme === 'light' ? '#6B7280' : '#9ca3af' }]}>{t('upload:difficultyLevel')}</Text>
-          <View style={styles.difficultySelector}>
-            {['easy', 'medium', 'hard'].map((level) => (
-              <TouchableOpacity
-                key={level}
-                style={[
-                  styles.difficultyButton,
-                  { backgroundColor: theme === 'light' ? '#F9FAFB' : '#272727', borderColor: theme === 'light' ? '#E5E7EB' : '#374151' },
-                  difficulty === level && styles.difficultyButtonActive,
-                  difficulty === level && level === 'easy' && { borderColor: '#10B981', backgroundColor: theme === 'light' ? '#ECFDF5' : '#10B98120' },
-                  difficulty === level && level === 'medium' && { borderColor: '#F59E0B', backgroundColor: theme === 'light' ? '#FEF3C7' : '#F59E0B20' },
-                  difficulty === level && level === 'hard' && { borderColor: '#EF4444', backgroundColor: theme === 'light' ? '#FEE2E2' : '#EF444420' },
-                ]}
-                onPress={() => setDifficulty(level)}
-                disabled={loading}
-              >
-                <Text style={[
-                  styles.difficultyButtonText,
-                  { color: theme === 'light' ? '#6B7280' : '#9ca3af' },
-                  difficulty === level && level === 'easy' && { color: '#10B981' },
-                  difficulty === level && level === 'medium' && { color: '#F59E0B' },
-                  difficulty === level && level === 'hard' && { color: '#EF4444' },
-                ]}>
-                  {level === 'easy' && `😊 ${t('upload:easy')}`}
-                  {level === 'medium' && `🎯 ${t('upload:medium')}`}
-                  {level === 'hard' && `🔥 ${t('upload:hard')}`}
+            <Text style={[styles.constraintsTitle, { color: textPrimary }]}>
+              {t('upload:quizSettings') ?? 'Quiz settings'}
+            </Text>
+            <View style={styles.constraintsGrid}>
+              <View style={styles.constraintField}>
+                <Text style={[styles.label, { color: textSecondary }]}>
+                  {t('upload:timeLimit') ?? 'Time limit (minutes)'}
                 </Text>
-              </TouchableOpacity>
-            ))}
+                <TextInput
+                  style={[
+                    styles.input,
+                    { backgroundColor: mutedBackground, color: textPrimary },
+                  ]}
+                  keyboardType="number-pad"
+                  value={timeLimit}
+                  onChangeText={handleTimeLimitChange}
+                  placeholder="30"
+                  placeholderTextColor={placeholderColor}
+                  editable={!loading}
+                />
+              </View>
+
+              <View style={styles.constraintField}>
+                <Text style={[styles.label, { color: textSecondary }]}>
+                  {t('upload:passingScore') ?? 'Passing score (%)'}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { backgroundColor: mutedBackground, color: textPrimary },
+                  ]}
+                  keyboardType="number-pad"
+                  value={passingScore}
+                  onChangeText={handlePassingScoreChange}
+                  placeholder="60"
+                  placeholderTextColor={placeholderColor}
+                  editable={!loading}
+                />
+              </View>
+            </View>
           </View>
 
-          <TouchableOpacity
-            style={[styles.uploadButton, { backgroundColor: theme === 'light' ? '#667eea' : '#4F46E5' }]}
-            onPress={pickDocument}
-            disabled={loading}
+          <View
+            style={[
+              styles.typeSelector,
+              {
+                backgroundColor: isLight ? '#E5E7EB' : '#1F2937',
+                borderColor,
+              },
+            ]}
           >
-            <Text style={styles.uploadButtonText}>{t('upload:chooseFile')}</Text>
-          </TouchableOpacity>
-
-          {selectedFile && (
             <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={uploadAndGenerate}
-              disabled={loading}
+              style={[
+                styles.typeButton,
+                uploadType === 'text' && (isLight ? styles.typeButtonActive : styles.typeButtonActiveDark),
+              ]}
+              onPress={() => setUploadType('text')}
+              activeOpacity={0.85}
             >
-              <LinearGradient
-                colors={['#667eea', '#764ba2']}
-                style={styles.buttonGradient}
+              <Ionicons
+                name="text"
+                size={18}
+                color={uploadType === 'text' ? (isLight ? '#312E81' : '#F9FAFB') : textSecondary}
+              />
+              <Text
+                style={[
+                  styles.typeButtonText,
+                  { color: uploadType === 'text' ? (isLight ? '#312E81' : '#F9FAFB') : textSecondary },
+                ]}
               >
-                {loading ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <Text style={styles.buttonText}>✨ {t('upload:uploadAndGenerate')}</Text>
-                )}
-              </LinearGradient>
+                {t('upload:textInput')}
+              </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                uploadType === 'file' && (isLight ? styles.typeButtonActive : styles.typeButtonActiveDark),
+              ]}
+              onPress={() => setUploadType('file')}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name="cloud-upload-outline"
+                size={18}
+                color={uploadType === 'file' ? (isLight ? '#312E81' : '#F9FAFB') : textSecondary}
+              />
+              <Text
+                style={[
+                  styles.typeButtonText,
+                  { color: uploadType === 'file' ? (isLight ? '#312E81' : '#F9FAFB') : textSecondary },
+                ]}
+              >
+                {t('upload:fileUpload')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {uploadType === 'text' ? (
+            <View
+              style={[
+                styles.card,
+                { backgroundColor: surfaceColor, borderColor },
+              ]}
+            >
+              <View style={styles.cardHeader}>
+                <Ionicons name="reader-outline" size={18} color="#6366F1" />
+                <Text style={[styles.cardTitle, { color: textPrimary }]}>
+                  {t('upload:fromText') ?? 'Generate from text'}
+                </Text>
+              </View>
+
+              <TextInput
+                style={[
+                  styles.textArea,
+                  { backgroundColor: mutedBackground, color: textPrimary },
+                ]}
+                multiline
+                numberOfLines={8}
+                value={text}
+                onChangeText={setText}
+                placeholder={t('upload:placeholder') ?? 'Paste or write content here (minimum 100 characters)'}
+                placeholderTextColor={placeholderColor}
+                editable={!loading}
+              />
+
+              <Text style={[styles.label, { color: textSecondary }]}>
+                {t('upload:numQuestions')}
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  { backgroundColor: mutedBackground, color: textPrimary },
+                ]}
+                keyboardType="number-pad"
+                value={numQuestions}
+                onChangeText={handleNumQuestionsChange}
+                placeholder="5"
+                placeholderTextColor={placeholderColor}
+                editable={!loading}
+              />
+
+              <Text style={[styles.label, { color: textSecondary }]}>
+                {t('upload:difficultyLevel')}
+              </Text>
+              <View style={styles.difficultySelector}>
+                {['easy', 'medium', 'hard'].map((level) => {
+                  const isActive = difficulty === level;
+                  const palette = {
+                    easy: '#10B981',
+                    medium: '#F59E0B',
+                    hard: '#EF4444',
+                  };
+                  return (
+                    <TouchableOpacity
+                      key={level}
+                      style={[
+                        styles.difficultyButton,
+                        { borderColor },
+                        isActive && { borderColor: palette[level] },
+                      ]}
+                      onPress={() => setDifficulty(level)}
+                      disabled={loading}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons
+                        name={
+                          level === 'easy'
+                            ? 'leaf-outline'
+                            : level === 'medium'
+                            ? 'speedometer-outline'
+                            : 'flame-outline'
+                        }
+                        size={18}
+                        color={isActive ? palette[level] : textSecondary}
+                        style={styles.difficultyIcon}
+                      />
+                      <Text
+                        style={[
+                          styles.difficultyButtonText,
+                          {
+                            color: isActive ? palette[level] : textSecondary,
+                          },
+                        ]}
+                      >
+                        {t(`upload:${level}`)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <TouchableOpacity
+                style={[styles.primaryButton, loading && styles.buttonDisabled]}
+                onPress={generateFromText}
+                disabled={loading}
+                activeOpacity={0.85}
+              >
+                <LinearGradient colors={['#6366F1', '#7C3AED']} style={styles.primaryButtonGradient}>
+                  {loading && isStreaming ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <View style={styles.primaryButtonContent}>
+                      <Ionicons name="sparkles-outline" size={18} color="#FFFFFF" />
+                      <Text style={styles.primaryButtonText}>{t('upload:generate')}</Text>
+                    </View>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.card,
+                { backgroundColor: surfaceColor, borderColor },
+              ]}
+            >
+              <View style={styles.cardHeader}>
+                <Ionicons name="cloud-upload-outline" size={18} color="#6366F1" />
+                <Text style={[styles.cardTitle, { color: textPrimary }]}>
+                  {t('upload:fromFile')}
+                </Text>
+              </View>
+              <Text style={[styles.infoText, { color: textSecondary }]}>
+                Upload PDF, image, Word, or text files. We will extract the important parts for your quiz.
+              </Text>
+
+              <View
+                style={[
+                  styles.fileTypesRow,
+                  { backgroundColor: isLight ? '#F8FAFC' : '#111827' },
+                ]}
+              >
+                {FILE_TYPES.map((type) => (
+                  <View key={type.label} style={styles.fileType}>
+                    <Ionicons name={type.icon} size={18} color="#6366F1" />
+                    <Text style={[styles.fileTypeText, { color: textSecondary }]}>
+                      {type.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              {selectedFile ? (
+                <View
+                  style={[
+                    styles.fileInfo,
+                    { backgroundColor: isLight ? '#EEF2FF' : '#1E1B4B' },
+                  ]}
+                >
+                  <View style={styles.fileInfoHeader}>
+                    <Ionicons name="document-text-outline" size={20} color="#4F46E5" />
+                    <View style={styles.fileInfoBody}>
+                      <Text style={[styles.fileName, { color: textPrimary }]} numberOfLines={1}>
+                        {selectedFile.name}
+                      </Text>
+                      <Text style={[styles.fileMeta, { color: textSecondary }]}>
+                        {selectedFile.size ? `${Math.round(selectedFile.size / 1024)} KB` : 'Size unknown'}
+                      </Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setSelectedFile(null)} activeOpacity={0.8}>
+                      <Ionicons name="close-circle" size={20} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                  {contentFeedback ? (
+                    <Text style={[styles.fileFeedback, { color: isLight ? '#4338CA' : '#C7D2FE' }]}>
+                      {contentFeedback}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+
+              <TouchableOpacity
+                style={[styles.secondaryButton, loading && styles.buttonDisabled]}
+                onPress={pickDocument}
+                disabled={loading}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="folder-open-outline" size={18} color="#4F46E5" />
+                <Text style={[styles.secondaryButtonText, { color: '#4F46E5' }]}>
+                  {t('upload:chooseFile')}
+                </Text>
+              </TouchableOpacity>
+
+              <Text style={[styles.label, { color: textSecondary }]}>
+                {t('upload:numQuestions')}
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  { backgroundColor: mutedBackground, color: textPrimary },
+                ]}
+                keyboardType="number-pad"
+                value={numQuestions}
+                onChangeText={handleNumQuestionsChange}
+                placeholder="5"
+                placeholderTextColor={placeholderColor}
+                editable={!loading}
+              />
+
+              <Text style={[styles.label, { color: textSecondary }]}>
+                {t('upload:difficultyLevel')}
+              </Text>
+              <View style={styles.difficultySelector}>
+                {['easy', 'medium', 'hard'].map((level) => {
+                  const isActive = difficulty === level;
+                  const palette = {
+                    easy: '#10B981',
+                    medium: '#F59E0B',
+                    hard: '#EF4444',
+                  };
+                  return (
+                    <TouchableOpacity
+                      key={level}
+                      style={[
+                        styles.difficultyButton,
+                        { borderColor },
+                        isActive && { borderColor: palette[level] },
+                      ]}
+                      onPress={() => setDifficulty(level)}
+                      disabled={loading}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons
+                        name={
+                          level === 'easy'
+                            ? 'leaf-outline'
+                            : level === 'medium'
+                            ? 'speedometer-outline'
+                            : 'flame-outline'
+                        }
+                        size={18}
+                        color={isActive ? palette[level] : textSecondary}
+                        style={styles.difficultyIcon}
+                      />
+                      <Text
+                        style={[
+                          styles.difficultyButtonText,
+                          { color: isActive ? palette[level] : textSecondary },
+                        ]}
+                      >
+                        {t(`upload:${level}`)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {selectedFile ? (
+                <TouchableOpacity
+                  style={[styles.primaryButton, loading && styles.buttonDisabled]}
+                  onPress={uploadAndGenerate}
+                  disabled={loading}
+                  activeOpacity={0.85}
+                >
+                  <LinearGradient colors={['#6366F1', '#7C3AED']} style={styles.primaryButtonGradient}>
+                    {loading && isStreaming ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <View style={styles.primaryButtonContent}>
+                        <Ionicons name="cloud-upload-outline" size={18} color="#FFFFFF" />
+                        <Text style={styles.primaryButtonText}>{t('upload:uploadAndGenerate')}</Text>
+                      </View>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              ) : null}
+            </View>
           )}
-        </View>
-        )}
         </ScrollView>
       </LinearGradient>
     </>
@@ -486,119 +767,236 @@ export default function UploadScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { padding: 20 },
-  header: { alignItems: 'center', marginBottom: 30, marginTop: 20 },
-  emoji: { fontSize: 48 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#111827', marginTop: 12 },
-  subtitle: { fontSize: 14, color: '#6B7280', marginTop: 4 },
+  container: {
+    flex: 1,
+  },
+  content: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  headerBadge: {
+    padding: 14,
+    borderRadius: 16,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 14,
+    marginTop: 6,
+    textAlign: 'center',
+  },
   contentAddedBanner: {
-    backgroundColor: '#10B981',
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: 12,
     padding: 12,
     marginTop: 16,
-    alignItems: 'center',
+  },
+  bannerIcon: {
+    marginRight: 8,
   },
   contentAddedText: {
-    color: 'white',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    textAlign: 'center',
+    flex: 1,
+  },
+  constraintsCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 20,
+  },
+  constraintsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  constraintsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  constraintField: {
+    flex: 1,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  input: {
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
   },
   typeSelector: {
     flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
     borderRadius: 12,
     padding: 4,
+    borderWidth: 1,
     marginBottom: 20,
   },
   typeButton: {
     flex: 1,
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
   typeButtonActive: {
-    backgroundColor: 'white',
+    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 4,
   },
   typeButtonActiveDark: {
     backgroundColor: '#4F46E5',
   },
   typeButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#6B7280',
   },
-  typeButtonTextActive: {
-    color: '#4F46E5',
+  card: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 24,
   },
-  typeButtonTextActiveDark: {
-    color: 'white',
-  },
-  card: { backgroundColor: '#FFF', borderRadius: 20, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
-  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 16 },
-  textArea: { backgroundColor: '#F3F4F6', borderRadius: 12, padding: 16, fontSize: 14, textAlignVertical: 'top', marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: '#6B7280', marginBottom: 8 },
-  input: { backgroundColor: '#F3F4F6', borderRadius: 12, padding: 16, fontSize: 16, marginBottom: 20 },
-  button: { borderRadius: 12, overflow: 'hidden' },
-  buttonGradient: { padding: 18, alignItems: 'center' },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  info: { fontSize: 14, color: '#6B7280', marginBottom: 16 },
-  fileTypesContainer: {
+  cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-    paddingVertical: 12,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-  },
-  fileType: {
     alignItems: 'center',
-    flex: 1,
+    gap: 10,
+    marginBottom: 16,
   },
-  fileTypeEmoji: {
-    fontSize: 24,
-    marginBottom: 4,
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
   },
-  fileTypeText: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '600',
+  textArea: {
+    borderRadius: 14,
+    padding: 16,
+    fontSize: 14,
+    minHeight: 160,
+    textAlignVertical: 'top',
+    marginBottom: 16,
   },
-  fileInfo: { backgroundColor: '#EEF2FF', borderRadius: 12, padding: 16, marginBottom: 16 },
-  fileName: { fontSize: 16, color: '#667eea', fontWeight: '600', marginBottom: 4 },
-  fileSize: { fontSize: 14, color: '#9CA3AF', marginBottom: 8 },
-  fileFeedback: { fontSize: 14, color: '#4F46E5', fontWeight: '500', textAlign: 'center' },
-  uploadButton: { backgroundColor: '#667eea', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 16 },
-  uploadButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
   difficultySelector: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 12,
+    marginTop: 12,
     marginBottom: 20,
   },
   difficultyButton: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    paddingVertical: 12,
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    justifyContent: 'center',
+    gap: 8,
   },
-  difficultyButtonActive: {
-    borderWidth: 2,
+  difficultyIcon: {
+    marginBottom: 2,
   },
   difficultyButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#6B7280',
+    textTransform: 'capitalize',
+  },
+  primaryButton: {
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  primaryButtonGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  primaryButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  primaryButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  infoText: {
+    fontSize: 13,
+    marginBottom: 16,
+  },
+  fileTypesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  fileType: {
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  fileTypeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  fileInfo: {
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+  },
+  fileInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  fileInfoBody: {
+    flex: 1,
+  },
+  fileName: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  fileMeta: {
+    fontSize: 12,
+  },
+  fileFeedback: {
+    marginTop: 10,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#4F46E5',
+    paddingVertical: 14,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 20,
+  },
+  secondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
+
+

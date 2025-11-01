@@ -1,3 +1,4 @@
+import * as Clipboard from 'expo-clipboard';
 import React, { useEffect, useRef, useState } from 'react';
 import { 
   View, 
@@ -10,7 +11,6 @@ import {
   ScrollView,
   Alert,
   Platform,
-  Clipboard,
   Modal,
   FlatList,
   Dimensions
@@ -115,11 +115,7 @@ export default function QuizDetailScreen({ route, navigation }) {
   const copyQuizLink = async () => {
     try {
       const quizUrl = `https://quizcraft.app/quiz/${id}`;
-      if (Platform.OS === 'web') {
-        await navigator.clipboard.writeText(quizUrl);
-      } else {
-        Clipboard.setString(quizUrl);
-      }
+      await Clipboard.setStringAsync(quizUrl);
       Alert.alert('Copied!', 'Quiz link copied to clipboard');
     } catch (error) {
       console.warn('Copy link error:', error);
@@ -781,3 +777,4 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
 });
+

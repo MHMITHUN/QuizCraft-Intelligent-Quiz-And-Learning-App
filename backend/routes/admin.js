@@ -493,4 +493,54 @@ router.get('/analytics', protect, authorize('admin'), async (req, res) => {
   }
 });
 
+/**
+ * @route   GET /api/admin/settings
+ * @desc    Get admin-manageable system settings
+ * @access  Private/Admin
+ */
+router.get('/settings', protect, authorize('admin'), async (req, res) => {
+  try {
+    const SystemSettings = require('../models/SystemSettings');
+    let settings = await SystemSettings.findOne({});
+
+    if (!settings) {
+      settings = await SystemSettings.create({});
+    }
+
+    res.json({ success: true, data: {
+      apiLimits: settings.apiLimits,
+      features: settings.features,
+    }});
+  } catch (error) {
+    console.error('Admin settings get error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch settings' });
+  }
+});
+
+/**
+ * @route   PUT /api/admin/settings
+ * @desc    Update system settings (admin)
+ * @access  Private/Admin
+ */
+router.put('/settings', protect, authorize('admin'), async (req, res) => {
+  try {
+    const SystemSettings = require('../models/SystemSettings');
+    const { apiLimits, features } = req.body || {};
+
+    const update = {};
+    if (apiLimits) update.apiLimits = apiLimits;
+    if (typeof features === 'object') update.features = features;
+
+    const saved = await SystemSettings.findOneAndUpdate({}, update, { new: true, upsert: true, setDefaultsOnInsert: true });
+
+    res.json({ success: true, message: 'Settings updated', data: {
+      apiLimits: saved.apiLimits,
+      features: saved.features,
+    }});
+  } catch (error) {
+    console.error('Admin settings update error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update settings' });
+  }
+});
+
 module.exports = router;

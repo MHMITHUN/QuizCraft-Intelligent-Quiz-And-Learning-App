@@ -1,355 +1,157 @@
-# QuizCraft Testing Checklist
+# Navigation Fix Testing Checklist
 
-This comprehensive checklist ensures all features are working properly before production deployment.
+## ✅ What Was Fixed
 
-## 🔐 Authentication & User Management
+### Issues Resolved:
+1. ❌ "Invalid or expired token" error on startup → ✅ Now handled silently
+2. ❌ "The 'navigation' object hasn't been initialized yet" error → ✅ Added proper initialization checks
+3. ❌ Cannot navigate to dashboard after login → ✅ Fixed timing and initialization issues
 
-### Registration & Login
-- [ ] User registration with email validation
-- [ ] Role selection during signup (Student/Teacher)
-- [ ] Login with email/password
-- [ ] Guest access functionality
-- [ ] Remember login state
-- [ ] Logout functionality
-- [ ] Profile data persistence
+### Changes Made:
+- **Enhanced token error handling** in AuthContext.js
+- **Added navigation ready checks** in App.js  
+- **Created centralized navigation utilities** (navigationRef.js)
+- **Added render delays** to ensure navigation container mounts properly
+- **Added safety checks** in AppStack before rendering
 
-### Forgot Password
-- [ ] Request password reset with email
-- [ ] Receive reset code via email
-- [ ] Verify reset code
-- [ ] Set new password
-- [ ] Invalid/expired code handling
-- [ ] Rate limiting for password reset requests
+## 🧪 Testing Instructions
 
-### Role-Based Access
-- [ ] Student role permissions
-- [ ] Teacher role permissions  
-- [ ] Admin role permissions
-- [ ] Role upgrade requests (Student → Teacher)
-- [ ] Admin approval for role changes
-- [ ] Proper access restrictions on screens
-- [ ] Navigation guards work correctly
+### 1. Test Student Login
+```
+Steps:
+1. Open the app (should show Welcome screen without errors)
+2. Click "Sign In"
+3. Enter student credentials:
+   - Email: ummati2025@gmail.com
+   - Password: [your password]
+4. Click "Sign In"
 
-## 📚 Quiz Management
+Expected Result:
+✅ Should navigate to Home screen (MainTabs) without any errors
+✅ No "navigation object hasn't been initialized" error
+✅ Bottom tab navigation should be visible
+```
 
-### Quiz Creation
-- [ ] Text input quiz generation
-- [ ] File upload quiz generation (PDF, DOCX, TXT)
-- [ ] Multiple question types (MCQ, True/False, Fill-in-the-blank)
-- [ ] Difficulty settings (Easy, Medium, Hard, Mixed)
-- [ ] Language selection (English/Bengali)
-- [ ] Category assignment
-- [ ] Tag extraction and assignment
-- [ ] Preview quiz before publishing
-- [ ] Edit existing quizzes
-- [ ] Delete quizzes
+### 2. Test Teacher Login
+```
+Steps:
+1. Logout if logged in
+2. Click "Sign In"
+3. Enter teacher credentials
+4. Click "Sign In"
 
-### Quiz Taking
-- [ ] Start quiz with proper instructions
-- [ ] Timer functionality
-- [ ] Question navigation (next/previous)
-- [ ] Answer selection and saving
-- [ ] Submit quiz with confirmation
-- [ ] Auto-submit on timer expiry
-- [ ] Resume incomplete quizzes
-- [ ] Offline quiz support (premium feature)
+Expected Result:
+✅ Should navigate to Teacher Dashboard without errors
+✅ Teacher-specific screens should be accessible
+```
 
-### Quiz Results
-- [ ] Score calculation accuracy
-- [ ] Detailed explanations for answers
-- [ ] Progress tracking and analytics
-- [ ] Result history
-- [ ] Grade breakdown by category
-- [ ] Performance insights
-- [ ] Retake functionality
-- [ ] Share results
+### 3. Test Guest Access
+```
+Steps:
+1. On Welcome screen, click "Continue as Guest"
 
-## 🔍 Search & Discovery
+Expected Result:
+✅ Should navigate to Home screen (MainTabs) without errors
+✅ Guest trial banner should be visible
+✅ Should have limited access (free tier)
+```
 
-### Search Functionality
-- [ ] Text-based search
-- [ ] Vector semantic search
-- [ ] Hybrid search (combined text + vector)
-- [ ] Search history tracking
-- [ ] Filter by category, difficulty, language
-- [ ] Sort results by relevance, date, popularity
-- [ ] Search suggestions and autocomplete
-- [ ] Empty state handling
+### 4. Test App Restart with Expired Token
+```
+Steps:
+1. Close the app completely
+2. Reopen the app
 
-### Browse & Filter
-- [ ] Category browsing
-- [ ] Popular quizzes section
-- [ ] Recent quizzes
-- [ ] My quizzes view
-- [ ] Bookmarked/favorite quizzes
-- [ ] Quiz recommendations
+Expected Result:
+✅ Should show Welcome screen
+✅ NO "Invalid or expired token" error should appear
+✅ User should be able to login again normally
+```
 
-## 🏫 Classroom Management (Teachers)
+### 5. Test Admin Login
+```
+Steps:
+1. Click "Admin Login" button
+2. Enter admin credentials
+3. Complete 2FA verification if required
+4. Click "Verify"
 
-### Class Creation & Management
-- [ ] Create new classes
-- [ ] Generate unique class codes
-- [ ] View enrolled students
-- [ ] Remove students from classes
-- [ ] Delete classes
-- [ ] Class analytics and insights
+Expected Result:
+✅ Should navigate to Admin Dashboard without errors
+✅ Admin-specific screens should be accessible
+```
 
-### Quiz Assignment
-- [ ] Assign quizzes to classes
-- [ ] Set due dates for assignments
-- [ ] Track student progress
-- [ ] View class performance
-- [ ] Export results
-- [ ] Individual student analytics
+## 🐛 What To Look For
 
-### Student Management
-- [ ] View student profiles
-- [ ] Track individual progress
-- [ ] Send notifications to students
-- [ ] Parent progress reports (premium)
+### Should NOT See:
+- ❌ "The 'navigation' object hasn't been initialized yet"
+- ❌ "Invalid or expired token" on startup
+- ❌ App stuck on login screen after successful login
+- ❌ Multiple navigation errors in console
+- ❌ Blank screen after login
 
-## 👨‍🎓 Student Features
+### Should See:
+- ✅ Smooth navigation after login
+- ✅ Appropriate dashboard based on user role
+- ✅ Console logs showing "[AuthContext] Login started" and "[AuthContext] Login response"
+- ✅ Navigation happens automatically after successful login
 
-### Class Participation
-- [ ] Join classes with codes
-- [ ] View joined classes
-- [ ] Leave classes
-- [ ] View assigned quizzes
-- [ ] Complete assignments within deadlines
-- [ ] Track personal progress in classes
+## 📝 Console Logs To Monitor
 
-### Personal Learning
-- [ ] Create personal study quizzes
-- [ ] Track learning progress
-- [ ] View performance analytics
-- [ ] Set study goals and schedules (premium)
-- [ ] Download quizzes for offline use (premium)
+### Good Logs (Expected):
+```
+LOG  [AuthContext] Login started for: <email>
+LOG  [AuthContext] Login response: { success: true, ... }
+LOG  [AuthContext] Token expired, user needs to log in again  (on app restart with expired token)
+```
 
-## 💳 Subscription & Billing
+### Bad Logs (Should NOT Appear):
+```
+ERROR  The 'navigation' object hasn't been initialized yet
+ERROR  Invalid or expired token  (as error banner to user)
+ERROR  Load user error: [Error: Invalid or expired token]  (as user-facing error)
+```
 
-### Subscription Plans
-- [ ] View available plans by role (Student/Teacher)
-- [ ] Compare plan features clearly
-- [ ] Monthly/yearly billing toggle
-- [ ] Pricing in Bangladeshi Taka
-- [ ] Popular plan highlighting
-- [ ] Current subscription status
+## 🔧 If Issues Persist
 
-### Payment Flow
-- [ ] Request subscription approval
-- [ ] Admin approval workflow
-- [ ] Payment instructions via email
-- [ ] Support for local payment methods (bKash, Nagad)
-- [ ] Bank transfer instructions
-- [ ] Payment status tracking
-- [ ] Invoice generation
+If you still see navigation errors:
 
-### Premium Features Access
-- [ ] Feature restrictions for free users
-- [ ] Premium feature unlocking
-- [ ] Subscription status verification
-- [ ] Grace period handling
-- [ ] Downgrade functionality
+1. **Clear app cache:**
+   ```bash
+   cd "M:\Program all\QuizCraft New\frontend"
+   npx expo start -c
+   ```
 
-## 🛠️ Admin Dashboard
+2. **Clear AsyncStorage:**
+   - On the app, completely uninstall and reinstall
+   - Or add this to clear storage:
+   ```javascript
+   AsyncStorage.clear()
+   ```
 
-### User Management
-- [ ] View all users with filters
-- [ ] User role management
-- [ ] Account activation/deactivation
-- [ ] User search and pagination
-- [ ] User analytics and insights
-- [ ] Role upgrade approvals
+3. **Check backend is running:**
+   ```bash
+   cd "M:\Program all\QuizCraft New\backend"
+   npm start
+   ```
 
-### Quiz Management
-- [ ] Review all quizzes
-- [ ] Approve/reject quiz submissions
-- [ ] Moderate quiz content
-- [ ] Delete inappropriate content
-- [ ] Quiz analytics and statistics
+4. **Verify API endpoint:**
+   - Check `frontend/src/services/api.js`
+   - Ensure baseURL is correct for your environment
 
-### Payment Management
-- [ ] View payment requests
-- [ ] Approve/reject subscriptions
-- [ ] Track payment status
-- [ ] Generate financial reports
-- [ ] Handle refunds and disputes
+## 📊 Success Criteria
 
-### System Analytics
-- [ ] User growth statistics
-- [ ] Quiz generation trends
-- [ ] Subscription analytics
-- [ ] System performance metrics
-- [ ] Export reports
+All tests pass when:
+- ✅ Student login → Home screen (no errors)
+- ✅ Teacher login → Teacher Dashboard (no errors)  
+- ✅ Guest access → Home screen (no errors)
+- ✅ App restart → Welcome screen (no token error)
+- ✅ Admin login → Admin Dashboard (no errors)
+- ✅ No console errors about navigation initialization
+- ✅ Smooth navigation experience throughout
 
-## 🌐 Internationalization
+## 🎯 Current Status
 
-### Language Support
-- [ ] English interface
-- [ ] Bengali interface
-- [ ] Language switching
-- [ ] Proper text rendering
-- [ ] Date/number formatting
-- [ ] RTL support where needed
+Server is running on: http://localhost:8082
 
-### Content Localization
-- [ ] Quiz content in both languages
-- [ ] Error messages translated
-- [ ] Success messages translated
-- [ ] Help text and tooltips
-- [ ] Email notifications
-
-## 📱 Platform Compatibility
-
-### Mobile Responsiveness
-- [ ] iOS mobile interface
-- [ ] Android mobile interface
-- [ ] Touch interactions
-- [ ] Keyboard handling
-- [ ] Screen rotation support
-- [ ] Navigation gestures
-
-### Web Responsiveness
-- [ ] Desktop web interface
-- [ ] Tablet interface
-- [ ] Mobile web interface
-- [ ] Cross-browser compatibility
-- [ ] Keyboard navigation
-- [ ] Accessibility features
-
-## 🔒 Security & Privacy
-
-### Data Protection
-- [ ] User data encryption
-- [ ] Secure password storage
-- [ ] Session management
-- [ ] Rate limiting
-- [ ] Input validation
-- [ ] SQL injection protection
-- [ ] XSS prevention
-
-### API Security
-- [ ] Authentication tokens
-- [ ] Role-based API access
-- [ ] Request validation
-- [ ] Rate limiting
-- [ ] Error handling
-- [ ] Logging and monitoring
-
-## ⚡ Performance & Optimization
-
-### Loading Performance
-- [ ] App startup time
-- [ ] Quiz loading speed
-- [ ] Search response time
-- [ ] Image loading optimization
-- [ ] Caching strategies
-- [ ] Offline functionality
-
-### Resource Management
-- [ ] Memory usage optimization
-- [ ] Battery usage (mobile)
-- [ ] Network usage efficiency
-- [ ] Storage management
-- [ ] Background task handling
-
-## 🐛 Error Handling
-
-### User Experience
-- [ ] Graceful error messages
-- [ ] Network error handling
-- [ ] Offline state handling
-- [ ] Form validation errors
-- [ ] Loading states
-- [ ] Empty states
-- [ ] 404/error pages
-
-### Technical Errors
-- [ ] API error responses
-- [ ] Database connection errors
-- [ ] File upload errors
-- [ ] Payment processing errors
-- [ ] Authentication errors
-- [ ] Server errors
-
-## 📊 Analytics & Monitoring
-
-### User Analytics
-- [ ] Quiz completion tracking
-- [ ] User engagement metrics
-- [ ] Performance analytics
-- [ ] Learning progress tracking
-- [ ] Feature usage statistics
-
-### System Monitoring
-- [ ] Server performance metrics
-- [ ] API response times
-- [ ] Error rate monitoring
-- [ ] Database performance
-- [ ] User session tracking
-
-## ✅ Final Deployment Checks
-
-### Pre-Production
-- [ ] Environment variables configured
-- [ ] Database migrations completed
-- [ ] SSL certificates installed
-- [ ] CDN configuration
-- [ ] Backup systems in place
-- [ ] Monitoring systems active
-
-### Post-Deployment
-- [ ] Health check endpoints working
-- [ ] All features functional in production
-- [ ] Performance metrics within acceptable ranges
-- [ ] Error rates minimal
-- [ ] User feedback collection active
-- [ ] Support documentation updated
-
-## 🎯 User Acceptance Testing
-
-### Student User Journey
-- [ ] Complete registration → quiz taking → results
-- [ ] Join class → complete assignments → view progress
-- [ ] Search → discover → bookmark quizzes
-- [ ] Upgrade subscription → access premium features
-
-### Teacher User Journey
-- [ ] Register → create class → assign quizzes
-- [ ] Monitor student progress → generate reports
-- [ ] Create custom quizzes → share with classes
-- [ ] Manage subscription → access teacher tools
-
-### Admin User Journey
-- [ ] Monitor system health → manage users
-- [ ] Approve payment requests → track finances
-- [ ] Moderate content → generate reports
-- [ ] Manage roles → handle support requests
-
----
-
-## Testing Environment Setup
-
-### Required Test Data
-- [ ] Sample users for each role (Student, Teacher, Admin)
-- [ ] Sample quizzes in different categories
-- [ ] Sample classes with enrolled students
-- [ ] Sample payment requests
-- [ ] Test subscription plans
-
-### Testing Tools
-- [ ] Automated testing suite
-- [ ] Manual testing checklist
-- [ ] Performance testing tools
-- [ ] Security testing tools
-- [ ] Cross-platform testing setup
-
----
-
-**Testing Status:** 🔄 In Progress
-
-**Completion Date:** TBD
-
-**Tested By:** Development Team
-
-**Approved By:** Project Manager
+Ready to test! Start with scenario #1 (Student Login) and work through each test case.

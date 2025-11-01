@@ -15,7 +15,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../hooks/useTheme';
 
 export default function AdminVerificationScreen({ navigation, route }) {
-  const { email } = route.params;
+  const email = (route?.params?.email || '').toString();
   const [code, setCode] = useState('');
   const { verifyAdminLogin, loading } = useAuth();
   const { theme } = useTheme();
@@ -46,12 +46,21 @@ export default function AdminVerificationScreen({ navigation, route }) {
       return;
     }
 
+    console.log('[AdminVerification] Verifying code...');
     const result = await verifyAdminLogin(email, code);
+    console.log('[AdminVerification] Result:', result);
     
     if (!result.success) {
       Alert.alert('Verification Failed', result.error);
+    } else {
+      // Successfully verified - AuthContext will redirect to the dashboard
+      console.log('[AdminVerification] Success! Awaiting dashboard navigation');
+      Alert.alert('Welcome!', 'Admin verification successful', [
+        {
+          text: 'OK',
+        }
+      ]);
     }
-    // If successful, navigation happens automatically when user state changes
   };
 
   const formatTime = (seconds) => {
@@ -259,3 +268,5 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
+
+

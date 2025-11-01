@@ -1,3 +1,4 @@
+import 'react-native-gesture-handler';
 import React from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -12,6 +13,7 @@ import { ToastComponent } from './src/components/Toast';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { useTheme } from './src/hooks/useTheme';
 import GuestTrialBanner from './src/components/GuestTrialBanner';
+import { navigationRef } from './src/utils/navigationRef';
 
 // Import web styles for better responsive design (web only)
 if (Platform.OS === 'web') {
@@ -29,6 +31,7 @@ import WelcomeScreen from './src/screens/auth/WelcomeScreen';
 import ForgotPasswordScreen from './src/screens/auth/ForgotPasswordScreen';
 import VerifyEmailScreen from './src/screens/auth/VerifyEmailScreen';
 import AdminVerificationScreen from './src/screens/auth/AdminVerificationScreen';
+import AdminLoginScreen from './src/screens/auth/AdminLoginScreen';
 
 // Main Screens
 import HomeScreen from './src/screens/main/HomeScreen';
@@ -102,10 +105,11 @@ function MainTabs() {
 // Auth Stack
 function AuthStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Welcome">
+    <Stack.Navigator key="auth-stack" screenOptions={{ headerShown: false }} initialRouteName="Welcome">
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Signup" component={SignupScreen} />
+      <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
       <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <Stack.Screen name="AdminVerification" component={AdminVerificationScreen} />
@@ -128,8 +132,27 @@ const RoleProtectedScreen = ({ component: Component, allowedRoles, ...props }) =
 function AppStack() {
   const { user } = useAuth();
 
+  // Don't render until we have a user
+  if (!user) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
+        <ActivityIndicator size="large" color="#4F46E5" />
+      </View>
+    );
+  }
+
+  const initial = user.role === 'admin'
+    ? 'AdminDashboard'
+    : user.role === 'teacher'
+      ? 'TeacherDashboard'
+      : 'MainTabs';
+
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      key={`app-stack-${user.role || 'default'}`}
+      initialRouteName={initial}
+      screenOptions={{ headerShown: true }}
+    >
       {/* Public screens available to all users */}
       <Stack.Screen 
         name="MainTabs" 
@@ -184,7 +207,33 @@ function AppStack() {
         options={{ title: 'My Payments' }}
       />
       
-      {/* Admin 2FA Verification - accessible from login */}
+      {/* Auth screens accessible from app for re-login */}
+      <Stack.Screen 
+        name="Login" 
+        component={LoginScreen}
+        options={{ title: 'Login', headerShown: false }}
+      />
+      {/* Include these auth screens as well so navigation works from anywhere */}
+      <Stack.Screen 
+        name="Signup" 
+        component={SignupScreen}
+        options={{ title: 'Sign Up', headerShown: false }}
+      />
+      <Stack.Screen 
+        name="ForgotPassword" 
+        component={ForgotPasswordScreen}
+        options={{ title: 'Forgot Password', headerShown: false }}
+      />
+      <Stack.Screen 
+        name="VerifyEmail" 
+        component={VerifyEmailScreen}
+        options={{ title: 'Verify Email', headerShown: false }}
+      />
+      <Stack.Screen 
+        name="AdminLogin" 
+        component={AdminLoginScreen}
+        options={{ title: 'Admin Login', headerShown: false }}
+      />
       <Stack.Screen 
         name="AdminVerification" 
         component={AdminVerificationScreen}
@@ -217,6 +266,38 @@ function AppStack() {
           allowedRoles: ['teacher', 'admin']
         })}
         options={{ title: 'Class Details' }}
+      />
+      <Stack.Screen 
+        name="StudentProgress" 
+        component={RoleProtectedScreen({
+          component: require('./src/screens/teacher/StudentProgressScreen').default,
+          allowedRoles: ['teacher', 'admin']
+        })}
+        options={{ title: 'Student Progress', headerShown: false }}
+      />
+      <Stack.Screen 
+        name="QuizAnalytics" 
+        component={RoleProtectedScreen({
+          component: require('./src/screens/teacher/QuizAnalyticsScreen').default,
+          allowedRoles: ['teacher', 'admin']
+        })}
+        options={{ title: 'Quiz Analytics', headerShown: false }}
+      />
+      <Stack.Screen 
+        name="AdvancedReports" 
+        component={RoleProtectedScreen({
+          component: require('./src/screens/teacher/AdvancedReportsScreen').default,
+          allowedRoles: ['teacher', 'admin']
+        })}
+        options={{ title: 'Advanced Reports', headerShown: false }}
+      />
+      <Stack.Screen 
+        name="Gradebook" 
+        component={RoleProtectedScreen({
+          component: require('./src/screens/teacher/GradebookScreen').default,
+          allowedRoles: ['teacher', 'admin']
+        })}
+        options={{ title: 'Gradebook', headerShown: false }}
       />
       
       {/* Admin-specific screens */}
@@ -266,10 +347,17 @@ function AppStack() {
 
 // Root Navigation
 function RootNavigator() {
-  const { user, loading } = useAuth();
+  const { user, initializing } = useAuth();
+  const [renderDelay, setRenderDelay] = React.useState(true);
 
-  if (loading) {
-    // Show a proper loading screen instead of null
+  // Small delay to ensure navigation container is mounted
+  React.useEffect(() => {
+    const timer = setTimeout(() => setRenderDelay(false), 50);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (initializing || renderDelay) {
+    // Show a proper loading screen only during app boot
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
         <ActivityIndicator size="large" color="#4F46E5" />
@@ -278,7 +366,7 @@ function RootNavigator() {
     );
   }
 
-  return user ? <AppStack /> : <AuthStack />;
+  return user ? <AppStack key="app" /> : <AuthStack key="auth" />;
 }
 
 export default function App() {
@@ -294,6 +382,7 @@ export default function App() {
 function AppContent() {
   const isWeb = Platform.OS === 'web';
   const { theme } = useTheme();
+  const [navReady, setNavReady] = React.useState(false);
 
   const lightTheme = {
     ...DefaultTheme,
@@ -323,7 +412,12 @@ function AppContent() {
     <WebResponsiveWrapper>
       <I18nProvider>
         <AuthProvider>
-          <NavigationContainer theme={currentTheme}>
+          <NavigationContainer
+            theme={currentTheme}
+            ref={navigationRef}
+            onReady={() => setNavReady(true)}
+          >
+            <NavigationStateHandler navigationRef={navigationRef} navReady={navReady} />
             <StatusBar style={theme === 'light' ? 'dark' : 'light'} />
             <View style={{
               flex: 1,
@@ -341,4 +435,103 @@ function AppContent() {
       </I18nProvider>
     </WebResponsiveWrapper>
   );
+}
+
+function NavigationStateHandler({ navigationRef, navReady }) {
+  const { user, initializing } = useAuth();
+  const previousRoleRef = React.useRef(null);
+  const wasAuthenticatedRef = React.useRef(false);
+  const hasNavigatedRef = React.useRef(false);
+
+  React.useEffect(() => {
+    const scheduleReset = (routeName, attempt = 0, delay = 100) => {
+      setTimeout(() => {
+        if (!navigationRef.isReady()) {
+          if (attempt < 8) {
+            scheduleReset(routeName, attempt + 1, 150);
+          }
+          return;
+        }
+
+        const routeNames = navigationRef.getRootState?.()?.routeNames ?? [];
+        if (!routeNames.includes(routeName)) {
+          if (attempt < 8) {
+            scheduleReset(routeName, attempt + 1, 150);
+          } else {
+            console.warn(`[NavigationStateHandler] Route "${routeName}" not available after authentication transition.`);
+          }
+          return;
+        }
+
+        navigationRef.reset({
+          index: 0,
+          routes: [{ name: routeName }],
+        });
+        hasNavigatedRef.current = true;
+      }, delay);
+    };
+
+    // Wait until navigation is ready AND auth is done initializing
+    if (!navReady || initializing) {
+      return;
+    }
+
+    // Additional check: ensure navigationRef is actually ready
+    if (!navigationRef.isReady()) {
+      return;
+    }
+
+    const isAuthenticated = !!user;
+    const currentRoute = navigationRef.getCurrentRoute()?.name;
+    const targetRoute = getTargetRouteForUser(user);
+
+    // Don't navigate if we're already where we need to be
+    if (currentRoute === targetRoute && hasNavigatedRef.current) {
+      return;
+    }
+
+    if (isAuthenticated) {
+      const roleChanged = previousRoleRef.current !== null && previousRoleRef.current !== user?.role;
+      const cameFromAuthFlow = !currentRoute || AUTH_FLOW_ROUTES.has(currentRoute);
+
+      if (roleChanged || cameFromAuthFlow || currentRoute !== targetRoute) {
+        scheduleReset(targetRoute);
+      }
+    } else {
+      // Only navigate to Welcome if user was authenticated or we're not already there
+      if ((wasAuthenticatedRef.current && currentRoute !== 'Welcome') || (!hasNavigatedRef.current && currentRoute !== targetRoute)) {
+        scheduleReset(targetRoute);
+      }
+    }
+
+    previousRoleRef.current = user?.role ?? null;
+    wasAuthenticatedRef.current = isAuthenticated;
+  }, [user, navReady, initializing, navigationRef]);
+
+  return null;
+}
+
+const AUTH_FLOW_ROUTES = new Set([
+  'Welcome',
+  'Login',
+  'Signup',
+  'ForgotPassword',
+  'VerifyEmail',
+  'AdminLogin',
+  'AdminVerification',
+]);
+
+function getTargetRouteForUser(user) {
+  if (!user) {
+    return 'Welcome';
+  }
+
+  switch (user.role) {
+    case 'admin':
+      return 'AdminDashboard';
+    case 'teacher':
+      return 'TeacherDashboard';
+    default:
+      return 'MainTabs';
+  }
 }

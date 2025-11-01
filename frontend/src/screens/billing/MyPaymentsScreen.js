@@ -15,7 +15,7 @@ export default function MyPaymentsScreen() {
     <View style={[styles.container, { backgroundColor: theme === 'light' ? '#F9FAFB' : '#121212' }]}>
       <FlatList data={list} keyExtractor={(p)=>p._id} contentContainerStyle={{ padding: 16 }} renderItem={({ item }) => (
         <View style={[styles.card, { backgroundColor: theme === 'light' ? '#FFF' : '#1e1e1e', borderColor: theme === 'light' ? '#E5E7EB' : '#272727' }]}>
-          <Text style={[styles.title, { color: theme === 'light' ? '#111827' : 'white' }]}>${item.amount} {item.currency}</Text>
+          <Text style={[styles.title, { color: theme === 'light' ? '#111827' : 'white' }]}>৳{item.amount} {item.currency}</Text>
           <Text style={[styles.sub, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>{item.provider} • {item.status} • {item.subscriptionPlan}</Text>
           <Text style={[styles.sub, { color: theme === 'light' ? '#6B7280' : '#9CA3AF' }]}>{new Date(item.createdAt).toLocaleString()}</Text>
         </View>

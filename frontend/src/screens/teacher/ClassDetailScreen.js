@@ -1,90 +1,140 @@
-import React, { useEffect, useState, useRef } from 'react';
+
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Modal,
-  Alert,
   ActivityIndicator,
-  Animated,
+  Alert,
+  Modal,
   RefreshControl,
+  ScrollView,
   Share,
-  Clipboard
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { classesAPI } from '../../services/api';
-import { useI18n } from '../../i18n';
-import { useAuth } from '../../context/AuthContext';
-import Toast from '../../components/Toast';
 import { useTheme } from '../../hooks/useTheme';
+import Toast from '../../components/Toast';
+
+const buildInitials = (value, fallback = '?') => {
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) {
+    return fallback;
+  }
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || fallback;
+};
+
+const formatDate = (value) => {
+  if (!value) {
+    return '';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return date.toLocaleDateString();
+};
 
 export default function ClassDetailScreen({ route, navigation }) {
-  const { id } = route.params || {};
-  const { t } = useI18n();
-  const { user } = useAuth();
-  const [klass, setKlass] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showJoinRequests, setShowJoinRequests] = useState(false);
-  const [showPostModal, setShowPostModal] = useState(false);
-  const [showCodeModal, setShowCodeModal] = useState(false);
-  const [postText, setPostText] = useState('');
-  const [posting, setPosting] = useState(false);
-  const [joinRequests, setJoinRequests] = useState([]);
-  const [processing, setProcessing] = useState(false);
+  const classId = route?.params?.id;
   const { theme } = useTheme();
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(-20)).current;
+  const [classData, setClassData] = useState(null);
+  const [joinRequests, setJoinRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [postModalVisible, setPostModalVisible] = useState(false);
+  const [postMessage, setPostMessage] = useState('');
+  const [submittingPost, setSubmittingPost] = useState(false);
+  const [processingRequest, setProcessingRequest] = useState(false);
 
-  useEffect(() => {
-    loadClassDetails();
-    
-    // Entrance animations
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      })
-    ]).start();
-  }, [id]);
+  const palette = useMemo(() => ({
+    background: theme === 'light' ? '#F8FAFC' : '#020817',
+    surface: theme === 'light' ? '#FFFFFF' : '#0F172A',
+    border: theme === 'light' ? '#E2E8F0' : '#1F2937',
+    textPrimary: theme === 'light' ? '#0F172A' : '#F8FAFC',
+    textSecondary: theme === 'light' ? '#64748B' : '#94A3B8',
+  }), [theme]);
 
-  const loadClassDetails = async () => {
+  const loadClass = useCallback(async () => {
+    if (!classId) {
+      return;
+    }
     try {
-      const [classRes, requestsRes] = await Promise.all([
-        classesAPI.getById(id),
-        classesAPI.getJoinRequests(id)
+      const [classRes, requestsRes] = await Promise.allSettled([
+        classesAPI.getById(classId),
+        classesAPI.getJoinRequests(classId),
       ]);
-      
-      setKlass(classRes?.data?.data?.class || null);
-      setJoinRequests(requestsRes?.data?.data?.requests || []);
+
+      if (classRes.status === 'fulfilled') {
+        setClassData(classRes.value?.data?.data?.class || null);
+      } else {
+        setClassData(null);
+        Toast.error('Unable to load class details');
+      }
+
+      if (requestsRes.status === 'fulfilled') {
+        setJoinRequests(requestsRes.value?.data?.data?.requests || []);
+      } else {
+        setJoinRequests([]);
+      }
     } catch (error) {
-      Toast.error('Failed to load class details');
+      Toast.error('Failed to load class information');
+      setClassData(null);
+      setJoinRequests([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [classId]);
 
-  const onRefresh = () => {
+  useEffect(() => {
+    setLoading(true);
+    loadClass();
+  }, [loadClass]);
+
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
-    loadClassDetails();
-  };
+    loadClass();
+  }, [loadClass]);
 
-  const generateNewCode = async () => {
+  const handleCopyCode = useCallback(async () => {
+    if (!classData?.code) {
+      return;
+    }
+    try {
+      await Clipboard.setStringAsync(classData.code);
+      Toast.success('Class code copied');
+    } catch (error) {
+      Toast.error('Unable to copy code right now');
+    }
+  }, [classData]);
+
+  const handleShareCode = useCallback(() => {
+    if (!classData?.code) {
+      return;
+    }
+    Share.share({
+      message: `Join my QuizCraft class "${classData.name}" with code: ${classData.code}`,
+      title: 'Share class code',
+    }).catch(() => Toast.error('Unable to share code'));
+  }, [classData]);
+
+  const handleGenerateNewCode = useCallback(() => {
+    if (!classId) {
+      return;
+    }
     Alert.alert(
-      'Generate New Code',
-      'This will generate a new join code and invalidate the current one. Students with the old code won\'t be able to join.',
+      'Generate new code',
+      'Students will no longer be able to join with the current code. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -92,60 +142,45 @@ export default function ClassDetailScreen({ route, navigation }) {
           style: 'destructive',
           onPress: async () => {
             try {
-              const response = await classesAPI.generateNewCode(id);
-              setKlass(prev => ({ ...prev, code: response.data.data.code }));
-              Toast.success('New join code generated!');
+              const response = await classesAPI.generateNewCode(classId);
+              const nextCode = response?.data?.data?.code;
+              if (nextCode) {
+                setClassData((prev) => (prev ? { ...prev, code: nextCode } : prev));
+                Toast.success('New join code created');
+              }
             } catch (error) {
-              Toast.error('Failed to generate new code');
+              Toast.error('Unable to generate a new code');
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
-  };
+  }, [classId]);
 
-  const copyCode = async () => {
-    try {
-      await Clipboard.setString(klass.code);
-      Toast.success('Class code copied to clipboard!');
-    } catch (error) {
-      Toast.error('Failed to copy code');
+  const handleJoinRequest = useCallback(async (requestId, action) => {
+    if (!classId) {
+      return;
     }
-  };
-
-  const shareClass = async () => {
+    setProcessingRequest(true);
     try {
-      const message = `Join my QuizCraft class "${klass.name}" with code: ${klass.code}`;
-      await Share.share({
-        message,
-        title: 'Join My Class',
-      });
+      await classesAPI.handleJoinRequest(classId, requestId, action);
+      const message = action === 'approve' ? 'Request approved' : 'Request rejected';
+      Toast.success(message);
+      loadClass();
     } catch (error) {
-      Toast.error('Failed to share class');
-    }
-  };
-
-  const handleJoinRequest = async (requestId, action) => {
-    setProcessing(true);
-    try {
-      await classesAPI.handleJoinRequest(id, requestId, action);
-      
-      const actionText = action === 'approve' ? 'approved' : 'rejected';
-      Toast.success(`Join request ${actionText}!`);
-      
-      // Reload data to reflect changes
-      loadClassDetails();
-    } catch (error) {
-      Toast.error(`Failed to ${action} join request`);
+      Toast.error('Unable to update request');
     } finally {
-      setProcessing(false);
+      setProcessingRequest(false);
     }
-  };
+  }, [classId, loadClass]);
 
-  const removeStudent = async (studentId) => {
+  const handleRemoveStudent = useCallback((studentId) => {
+    if (!classId) {
+      return;
+    }
     Alert.alert(
-      'Remove Student',
-      'Are you sure you want to remove this student from the class?',
+      'Remove student',
+      'Remove this student from the class?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -153,898 +188,649 @@ export default function ClassDetailScreen({ route, navigation }) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await classesAPI.removeStudent(id, studentId);
-              Toast.success('Student removed successfully!');
-              loadClassDetails();
+              await classesAPI.removeStudent(classId, studentId);
+              Toast.success('Student removed');
+              loadClass();
             } catch (error) {
-              Toast.error('Failed to remove student');
+              Toast.error('Unable to remove student');
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
-  };
+  }, [classId, loadClass]);
 
-  const createPost = async () => {
-    if (!postText.trim()) {
-      Toast.warning('Please enter a message');
+  const handleCreatePost = useCallback(async () => {
+    if (!classId || !postMessage.trim()) {
       return;
     }
-
-    setPosting(true);
+    setSubmittingPost(true);
     try {
-      await classesAPI.createPost(id, { message: postText.trim() });
-      setPostText('');
-      setShowPostModal(false);
-      Toast.success('Post created successfully!');
-      loadClassDetails();
+      await classesAPI.createPost(classId, { message: postMessage.trim() });
+      setPostMessage('');
+      setPostModalVisible(false);
+      Toast.success('Announcement posted');
+      loadClass();
     } catch (error) {
-      Toast.error('Failed to create post');
+      Toast.error('Unable to post announcement');
     } finally {
-      setPosting(false);
+      setSubmittingPost(false);
     }
-  };
+  }, [classId, postMessage, loadClass]);
+
+  const headerSubtitle = useMemo(() => {
+    const createdAt = classData?.createdAt ? new Date(classData.createdAt) : null;
+    if (!createdAt || Number.isNaN(createdAt.getTime())) {
+      return 'Class overview';
+    }
+    return `Created ${createdAt.toLocaleDateString()}`;
+  }, [classData]);
+
+  const summaryCards = useMemo(() => ([
+    {
+      key: 'students',
+      label: 'Students',
+      value: classData?.students?.length || 0,
+      icon: 'people',
+      color: '#6366F1',
+    },
+    {
+      key: 'quizzes',
+      label: 'Quizzes assigned',
+      value: classData?.quizzes?.length || 0,
+      icon: 'book',
+      color: '#F97316',
+    },
+    {
+      key: 'requests',
+      label: 'Join requests',
+      value: joinRequests.length,
+      icon: 'person-add',
+      color: '#10B981',
+    },
+  ]), [classData, joinRequests.length]);
+
+  const sortedPosts = useMemo(() => {
+    const posts = Array.isArray(classData?.posts) ? classData.posts : [];
+    return posts
+      .slice()
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [classData]);
+
+  const studentList = useMemo(() => Array.isArray(classData?.students) ? classData.students : [], [classData]);
+  const quizList = useMemo(() => Array.isArray(classData?.quizzes) ? classData.quizzes : [], [classData]);
 
   if (loading) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
-        <ActivityIndicator size="large" color="#4F46E5" />
-        <Text style={[styles.loadingText, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>Loading class details...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: palette.background }]}> 
+        <ActivityIndicator size="large" color="#6366F1" />
+        <Text style={[styles.loadingText, { color: palette.textSecondary }]}>Loading class details...</Text>
       </View>
     );
   }
 
-  if (!klass) {
+  if (!classData) {
     return (
-      <View style={[styles.errorContainer, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
-        <Ionicons name="alert-circle" size={64} color="#EF4444" />
-        <Text style={[styles.errorText, { color: theme === 'light' ? '#374151' : 'white' }]}>Class not found</Text>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>Go Back</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: palette.background }]}> 
+        <Ionicons name="alert-circle" size={56} color="#EF4444" />
+        <Text style={[styles.errorText, { color: palette.textPrimary }]}>Class not found</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadClass}>
+          <Text style={styles.retryButtonText}>Try again</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
-      {/* Header */}
-      <LinearGradient
-        colors={theme === 'light' ? ['#4F46E5', '#7C3AED', '#EC4899'] : ['#222','#555']}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <Animated.View 
-          style={[
-            styles.headerContent,
-            { transform: [{ translateY: slideAnim }], opacity: fadeAnim }
-          ]}
-        >
-          <TouchableOpacity 
-            style={styles.headerBackButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color="white" />
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}> 
+      <LinearGradient colors={theme === 'light' ? ['#312E81', '#5B21B6'] : ['#0F172A', '#1E1B4B']} style={styles.hero}>
+        <View style={styles.heroHeader}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
           </TouchableOpacity>
-          
-          <View style={styles.headerInfo}>
-            <Text style={styles.className}>{klass.name}</Text>
-            <Text style={styles.classStats}>
-              {klass.students?.length || 0} students • {klass.quizzes?.length || 0} quizzes
-            </Text>
+          <View style={styles.heroText}>
+            <Text style={styles.heroTitle} numberOfLines={1}>{classData.name}</Text>
+            <Text style={styles.heroSubtitle}>{headerSubtitle}</Text>
           </View>
-          
-          <TouchableOpacity
-            style={styles.codeButton}
-            onPress={() => setShowCodeModal(true)}
-          >
-            <Ionicons name="qr-code" size={24} color="white" />
+          <TouchableOpacity style={styles.iconButton} onPress={() => setPostModalVisible(true)}>
+            <Ionicons name="megaphone" size={20} color="#FFFFFF" />
           </TouchableOpacity>
-        </Animated.View>
+        </View>
+        <View style={styles.heroCodeRow}>
+          <Text style={styles.heroCodeLabel}>Join code</Text>
+          <Text style={styles.heroCodeValue}>{classData.code || '----'}</Text>
+          <TouchableOpacity style={styles.heroChip} onPress={handleCopyCode}>
+            <Ionicons name="copy" size={16} color="#FFFFFF" />
+            <Text style={styles.heroChipText}>Copy</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.heroChip} onPress={handleShareCode}>
+            <Ionicons name="share-social" size={16} color="#FFFFFF" />
+            <Text style={styles.heroChipText}>Share</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.heroChip} onPress={handleGenerateNewCode}>
+            <Ionicons name="refresh" size={16} color="#FFFFFF" />
+            <Text style={styles.heroChipText}>New code</Text>
+          </TouchableOpacity>
+        </View>
       </LinearGradient>
 
-      <ScrollView 
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      <ScrollView
+        style={styles.scrollArea}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}
       >
-        {/* Action Buttons */}
-        <Animated.View 
-          style={[
-            styles.actionRow,
-            { transform: [{ translateY: slideAnim }], opacity: fadeAnim }
-          ]}
-        >
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#10B981' }]}
-            onPress={() => setShowPostModal(true)}
-          >
-            <Ionicons name="create-outline" size={20} color="white" />
-            <Text style={styles.actionButtonText}>Post</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#F59E0B' }]}
-            onPress={() => setShowJoinRequests(true)}
-          >
-            <Ionicons name="people-outline" size={20} color="white" />
-            <Text style={styles.actionButtonText}>
-              Requests ({joinRequests.length})
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
-            onPress={shareClass}
-          >
-            <Ionicons name="share-outline" size={20} color="white" />
-            <Text style={styles.actionButtonText}>Share</Text>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Class Posts */}
-        {klass.posts && klass.posts.length > 0 && (
-          <Animated.View 
-            style={[
-              styles.section,
-              { transform: [{ translateY: slideAnim }], opacity: fadeAnim }
-            ]}
-          >
-            <View style={styles.sectionHeader}>
-              <Ionicons name="megaphone-outline" size={20} color="#4F46E5" />
-              <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>Recent Posts</Text>
+        <View style={styles.summaryGrid}>
+          {summaryCards.map((card) => (
+            <View key={card.key} style={[styles.summaryCard, { backgroundColor: palette.surface, borderColor: palette.border }]}> 
+              <View style={[styles.summaryIcon, { backgroundColor: card.color }]}>
+                <Ionicons name={card.icon} size={18} color="#FFFFFF" />
+              </View>
+              <Text style={[styles.summaryValue, { color: palette.textPrimary }]}>{card.value}</Text>
+              <Text style={[styles.summaryLabel, { color: palette.textSecondary }]}>{card.label}</Text>
             </View>
-            
-            {klass.posts.slice(0, 3).map((post, index) => (
-              <View key={post._id || index} style={[styles.postCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
-                <View style={styles.postHeader}>
-                  <View style={styles.teacherAvatar}>
-                    <Text style={styles.teacherInitial}>
-                      {post.author?.name?.charAt(0) || 'T'}
-                    </Text>
-                  </View>
-                  <View style={styles.postInfo}>
-                    <Text style={[styles.postAuthor, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{post.author?.name || 'Teacher'}</Text>
-                    <Text style={[styles.postTime, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>
-                      {new Date(post.createdAt).toLocaleDateString()}
-                    </Text>
-                  </View>
+          ))}
+        </View>
+
+        {joinRequests.length ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Join requests</Text>
+              <Text style={[styles.sectionMeta, { color: palette.textSecondary }]}>{joinRequests.length} pending</Text>
+            </View>
+            {joinRequests.map((request) => (
+              <View key={request._id} style={[styles.requestCard, { backgroundColor: palette.surface, borderColor: palette.border }]}> 
+                <View style={styles.requestAvatar}>
+                  <Text style={styles.requestAvatarText}>{buildInitials(request.name, '?')}</Text>
                 </View>
-                <Text style={[styles.postMessage, { color: theme === 'light' ? '#374151' : 'white' }]}>{post.message}</Text>
+                <View style={styles.requestInfo}>
+                  <Text style={[styles.requestName, { color: palette.textPrimary }]} numberOfLines={1}>
+                    {request.name || 'Pending user'}
+                  </Text>
+                  <Text style={[styles.requestEmail, { color: palette.textSecondary }]} numberOfLines={1}>
+                    {request.email || 'No email provided'}
+                  </Text>
+                  <Text style={[styles.requestDate, { color: palette.textSecondary }]}>Requested {formatDate(request.createdAt)}</Text>
+                </View>
+                <View style={styles.requestActions}>
+                  <TouchableOpacity
+                    style={[styles.requestButton, styles.requestButtonApprove]}
+                    disabled={processingRequest}
+                    onPress={() => handleJoinRequest(request._id, 'approve')}
+                  >
+                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.requestButton, styles.requestButtonReject]}
+                    disabled={processingRequest}
+                    onPress={() => handleJoinRequest(request._id, 'reject')}
+                  >
+                    <Ionicons name="close" size={16} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
               </View>
             ))}
-          </Animated.View>
-        )}
-
-        {/* Students Section */}
-        <Animated.View 
-          style={[
-            styles.section,
-            { transform: [{ translateY: slideAnim }], opacity: fadeAnim }
-          ]}
-        >
-          <View style={styles.sectionHeader}>
-            <Ionicons name="people-outline" size={20} color="#10B981" />
-            <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>
-              Students ({klass.students?.length || 0})
-            </Text>
           </View>
-          
-          {klass.students && klass.students.length > 0 ? (
-            klass.students.map((student, index) => (
-              <View key={student._id} style={[styles.studentCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
-                <View style={styles.studentInfo}>
-                  <View style={styles.studentAvatar}>
-                    <Text style={styles.studentInitial}>
-                      {student.name?.charAt(0)?.toUpperCase() || 'S'}
-                    </Text>
-                  </View>
-                  <View style={styles.studentDetails}>
-                    <Text style={[styles.studentName, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{student.name}</Text>
-                    <Text style={[styles.studentEmail, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>{student.email}</Text>
-                    <Text style={[styles.studentJoined, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>
-                      Joined {new Date(student.joinedAt).toLocaleDateString()}
-                    </Text>
-                  </View>
+        ) : null}
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Students</Text>
+            <Text style={[styles.sectionMeta, { color: palette.textSecondary }]}>{studentList.length} enrolled</Text>
+          </View>
+          {studentList.length ? (
+            studentList.map((student) => (
+              <View key={student._id || student.email} style={[styles.studentCard, { backgroundColor: palette.surface, borderColor: palette.border }]}> 
+                <View style={styles.studentAvatar}>
+                  <Text style={styles.studentAvatarText}>{buildInitials(student.name)}</Text>
                 </View>
-                
-                <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={() => removeStudent(student._id)}
-                >
-                  <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                <View style={styles.studentInfo}>
+                  <Text style={[styles.studentName, { color: palette.textPrimary }]} numberOfLines={1}>{student.name || 'Student'}</Text>
+                  <Text style={[styles.studentEmail, { color: palette.textSecondary }]} numberOfLines={1}>{student.email || 'No email'}</Text>
+                </View>
+                <TouchableOpacity style={styles.removeButton} onPress={() => handleRemoveStudent(student._id)}>
+                  <Ionicons name="remove-circle" size={18} color="#EF4444" />
                 </TouchableOpacity>
               </View>
             ))
           ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="school-outline" size={48} color="#9CA3AF" />
-              <Text style={[styles.emptyTitle, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>No students yet</Text>
-              <Text style={[styles.emptyText, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>Share your class code to get students</Text>
+            <View style={[styles.emptyCard, { borderColor: palette.border }]}> 
+              <Ionicons name="person-outline" size={22} color={palette.textSecondary} />
+              <Text style={[styles.emptyText, { color: palette.textSecondary }]}>No students yet</Text>
             </View>
           )}
-        </Animated.View>
-
-        {/* Assigned Quizzes Section */}
-        <Animated.View 
-          style={[
-            styles.section,
-            { transform: [{ translateY: slideAnim }], opacity: fadeAnim }
-          ]}
-        >
+        </View>
+        <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="library-outline" size={20} color="#8B5CF6" />
-            <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>
-              Assigned Quizzes ({klass.quizzes?.length || 0})
-            </Text>
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Assigned quizzes</Text>
+            <Text style={[styles.sectionMeta, { color: palette.textSecondary }]}>{quizList.length}</Text>
           </View>
-          
-          {klass.quizzes && klass.quizzes.length > 0 ? (
-            klass.quizzes.map((quiz, index) => (
+          {quizList.length ? (
+            quizList.map((quiz) => (
               <TouchableOpacity
                 key={quiz._id}
-                style={[styles.quizCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}
-                onPress={() => navigation.navigate('QuizDetail', { id: quiz._id })}
+                style={[styles.quizCard, { backgroundColor: palette.surface, borderColor: palette.border }]}
+                onPress={() => navigation.navigate('QuizAnalytics', { quizId: quiz._id })}
               >
-                <View style={styles.quizInfo}>
-                  <Text style={[styles.quizTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{quiz.title}</Text>
-                  <Text style={styles.quizCategory}>{quiz.category}</Text>
-                  <Text style={[styles.quizStats, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>
-                    {quiz.questions?.length} questions • {quiz.attempts || 0} attempts
+                <View>
+                  <Text style={[styles.quizTitle, { color: palette.textPrimary }]} numberOfLines={1}>{quiz.title || 'Untitled quiz'}</Text>
+                  <Text style={[styles.quizMeta, { color: palette.textSecondary }]}> 
+                    {quiz.category || 'General'} - {quiz.questions?.length || 0} questions
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                <Ionicons name="chevron-forward" size={18} color={palette.textSecondary} />
               </TouchableOpacity>
             ))
           ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="library-outline" size={48} color="#9CA3AF" />
-              <Text style={[styles.emptyTitle, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>No quizzes assigned</Text>
-              <Text style={[styles.emptyText, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>Assign quizzes from your quiz library</Text>
+            <View style={[styles.emptyCard, { borderColor: palette.border }]}> 
+              <Ionicons name="document-outline" size={22} color={palette.textSecondary} />
+              <Text style={[styles.emptyText, { color: palette.textSecondary }]}>No quizzes assigned yet</Text>
             </View>
           )}
-        </Animated.View>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Announcements</Text>
+            <TouchableOpacity onPress={() => setPostModalVisible(true)}>
+              <Text style={styles.addLink}>New announcement</Text>
+            </TouchableOpacity>
+          </View>
+          {sortedPosts.length ? (
+            sortedPosts.map((post) => (
+              <View key={post._id} style={[styles.postCard, { backgroundColor: palette.surface, borderColor: palette.border }]}> 
+                <View style={styles.postHeader}>
+                  <Text style={[styles.postAuthor, { color: palette.textPrimary }]}>
+                    {post.author?.name || 'Teacher'}
+                  </Text>
+                  <Text style={[styles.postDate, { color: palette.textSecondary }]}>
+                    {formatDate(post.createdAt)}
+                  </Text>
+                </View>
+                <Text style={[styles.postBody, { color: palette.textPrimary }]}>{post.message}</Text>
+              </View>
+            ))
+          ) : (
+            <View style={[styles.emptyCard, { borderColor: palette.border }]}> 
+              <Ionicons name="megaphone-outline" size={22} color={palette.textSecondary} />
+              <Text style={[styles.emptyText, { color: palette.textSecondary }]}>No announcements yet</Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
 
-      {/* Class Code Modal */}
-      <Modal
-        visible={showCodeModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <View style={[styles.modalContainer, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
-          <View style={[styles.modalHeader, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderBottomColor: theme === 'light' ? '#e2e8f0' : '#272727' }]}>
-            <TouchableOpacity onPress={() => setShowCodeModal(false)}>
-              <Ionicons name="close" size={24} color={theme === 'light' ? '#374151' : 'white'} />
-            </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>Class Join Code</Text>
-            <TouchableOpacity onPress={generateNewCode}>
-              <Ionicons name="refresh" size={24} color="#4F46E5" />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.codeModalContent}>
-            <View style={[styles.codeDisplay, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
-              <Text style={styles.codeText}>{klass.code}</Text>
-            </View>
-            
-            <Text style={[styles.codeInstructions, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>
-              Students can join your class using this code
-            </Text>
-            
-            <View style={styles.codeActions}>
-              <TouchableOpacity
-                style={[styles.codeActionButton, { backgroundColor: '#10B981' }]}
-                onPress={copyCode}
-              >
-                <Ionicons name="copy-outline" size={20} color="white" />
-                <Text style={styles.codeActionText}>Copy Code</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.codeActionButton, { backgroundColor: '#3B82F6' }]}
-                onPress={shareClass}
-              >
-                <Ionicons name="share-outline" size={20} color="white" />
-                <Text style={styles.codeActionText}>Share Class</Text>
+      <Modal visible={postModalVisible} animationType="slide" transparent>
+        <View style={styles.modalBackdrop}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setPostModalVisible(false)} />
+          <View style={[styles.modalSheet, { backgroundColor: palette.surface }]}> 
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: palette.textPrimary }]}>New announcement</Text>
+              <TouchableOpacity onPress={() => setPostModalVisible(false)}>
+                <Ionicons name="close" size={22} color={palette.textSecondary} />
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Join Requests Modal */}
-      <Modal
-        visible={showJoinRequests}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <View style={[styles.modalContainer, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
-          <View style={[styles.modalHeader, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderBottomColor: theme === 'light' ? '#e2e8f0' : '#272727' }]}>
-            <TouchableOpacity onPress={() => setShowJoinRequests(false)}>
-              <Ionicons name="close" size={24} color={theme === 'light' ? '#374151' : 'white'} />
-            </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>Join Requests</Text>
-            <View style={styles.requestsBadge}>
-              <Text style={styles.requestsCount}>{joinRequests.length}</Text>
-            </View>
-          </View>
-          
-          <ScrollView style={styles.requestsList}>
-            {joinRequests.length > 0 ? (
-              joinRequests.map((request, index) => (
-                <View key={request._id} style={[styles.requestCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
-                  <View style={styles.requestInfo}>
-                    <View style={styles.requestAvatar}>
-                      <Text style={styles.requestInitial}>
-                        {request.user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                      </Text>
-                    </View>
-                    <View style={styles.requestDetails}>
-                      <Text style={[styles.requestName, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{request.user?.name}</Text>
-                      <Text style={[styles.requestEmail, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>{request.user?.email}</Text>
-                      <Text style={[styles.requestTime, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>
-                        Requested {new Date(request.createdAt).toLocaleDateString()}
-                      </Text>
-                    </View>
-                  </View>
-                  
-                  <View style={styles.requestActions}>
-                    <TouchableOpacity
-                      style={[styles.requestActionButton, styles.approveButton]}
-                      onPress={() => handleJoinRequest(request._id, 'approve')}
-                      disabled={processing}
-                    >
-                      <Ionicons name="checkmark" size={16} color="white" />
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity
-                      style={[styles.requestActionButton, styles.rejectButton]}
-                      onPress={() => handleJoinRequest(request._id, 'reject')}
-                      disabled={processing}
-                    >
-                      <Ionicons name="close" size={16} color="white" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))
-            ) : (
-              <View style={styles.emptyRequests}>
-                <Ionicons name="person-add-outline" size={64} color="#9CA3AF" />
-                <Text style={[styles.emptyRequestsTitle, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>No join requests</Text>
-                <Text style={[styles.emptyRequestsText, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>All join requests will appear here</Text>
-              </View>
-            )}
-          </ScrollView>
-        </View>
-      </Modal>
-
-      {/* Create Post Modal */}
-      <Modal
-        visible={showPostModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <View style={[styles.modalContainer, { backgroundColor: theme === 'light' ? '#f8fafc' : '#121212' }]}>
-          <View style={[styles.modalHeader, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e', borderBottomColor: theme === 'light' ? '#e2e8f0' : '#272727' }]}>
-            <TouchableOpacity onPress={() => setShowPostModal(false)}>
-              <Ionicons name="close" size={24} color={theme === 'light' ? '#374151' : 'white'} />
-            </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>Create Post</Text>
-            <TouchableOpacity 
-              onPress={createPost}
-              disabled={posting || !postText.trim()}
+            <TextInput
+              style={[styles.postInput, { color: palette.textPrimary, borderColor: palette.border }]}
+              multiline
+              placeholder="Share an update with your class"
+              placeholderTextColor={palette.textSecondary}
+              value={postMessage}
+              onChangeText={setPostMessage}
+              maxLength={500}
+            />
+            <TouchableOpacity
+              style={[styles.submitButton, postMessage.trim().length === 0 ? styles.submitButtonDisabled : null]}
+              onPress={handleCreatePost}
+              disabled={submittingPost || postMessage.trim().length === 0}
             >
-              {posting ? (
-                <ActivityIndicator size="small" color="#4F46E5" />
+              {submittingPost ? (
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={[
-                  styles.postSubmitText,
-                  !postText.trim() && styles.postSubmitTextDisabled
-                ]}>Post</Text>
+                <Text style={styles.submitButtonText}>Post announcement</Text>
               )}
             </TouchableOpacity>
           </View>
-          
-          <View style={styles.postModalContent}>
-            <TextInput
-              style={[styles.postInput, { backgroundColor: theme === 'light' ? 'white' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' }]}
-              value={postText}
-              onChangeText={setPostText}
-              placeholder="What would you like to share with your students?"
-              placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
-              multiline
-              textAlignVertical="top"
-              maxLength={1000}
-            />
-            
-            <Text style={[styles.characterCount, { color: theme === 'light' ? '#9CA3AF' : '#6B7280' }]}>
-              {postText.length}/1000
-            </Text>
-          </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
   },
-  loadingContainer: {
+  scrollArea: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
   },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#64748b',
-    fontFamily: 'Poppins-Medium',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#374151',
-    marginTop: 16,
-    marginBottom: 24,
-  },
-  backButton: {
-    backgroundColor: '#4F46E5',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  backButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 20,
+  scrollContent: {
     paddingHorizontal: 20,
+    paddingBottom: 24,
   },
-  headerContent: {
+  hero: {
+    paddingTop: 32,
+    paddingBottom: 28,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  headerBackButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerInfo: {
+  heroText: {
     flex: 1,
-    marginLeft: 16,
+    marginHorizontal: 12,
   },
-  className: {
-    fontSize: 20,
-    fontFamily: 'Poppins-Bold',
-    color: 'white',
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
-  classStats: {
+  heroSubtitle: {
     fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: 'rgba(255,255,255,0.85)',
   },
-  codeButton: {
+  heroCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  heroCodeLabel: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 14,
+    marginRight: 6,
+  },
+  heroCodeValue: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    marginRight: 12,
+  },
+  heroChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
+  heroChipText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  iconButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    marginBottom: 24,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginHorizontal: 4,
   },
-  actionButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontFamily: 'Poppins-SemiBold',
-    marginLeft: 6,
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  summaryCard: {
+    width: '48%',
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 16,
+  },
+  summaryIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  summaryValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  summaryLabel: {
+    fontSize: 13,
   },
   section: {
-    marginBottom: 24,
+    marginTop: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#1e293b',
-    marginLeft: 8,
+    fontWeight: '700',
   },
-  postCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  postHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  teacherAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#4F46E5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  teacherInitial: {
-    color: 'white',
-    fontSize: 14,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  postInfo: {
-    flex: 1,
-  },
-  postAuthor: {
-    fontSize: 14,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#1e293b',
-  },
-  postTime: {
-    fontSize: 12,
-    fontFamily: 'Poppins-Regular',
-    color: '#64748b',
-  },
-  postMessage: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-    color: '#374151',
-    lineHeight: 20,
-  },
-  studentCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  studentInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  studentAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#10B981',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  studentInitial: {
-    color: 'white',
-    fontSize: 18,
-    fontFamily: 'Poppins-Bold',
-  },
-  studentDetails: {
-    flex: 1,
-  },
-  studentName: {
-    fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#1e293b',
-    marginBottom: 2,
-  },
-  studentEmail: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-    color: '#64748b',
-    marginBottom: 2,
-  },
-  studentJoined: {
-    fontSize: 12,
-    fontFamily: 'Poppins-Regular',
-    color: '#9CA3AF',
-  },
-  removeButton: {
-    padding: 8,
-  },
-  quizCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  quizInfo: {
-    flex: 1,
-  },
-  quizTitle: {
-    fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#1e293b',
-    marginBottom: 4,
-  },
-  quizCategory: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Medium',
-    color: '#8B5CF6',
-    marginBottom: 4,
-  },
-  quizStats: {
-    fontSize: 12,
-    fontFamily: 'Poppins-Regular',
-    color: '#64748b',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#64748b',
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  emptyText: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-    color: '#9CA3AF',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingTop: 60,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#1e293b',
-  },
-  codeModalContent: {
-    flex: 1,
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  codeDisplay: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 32,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  codeText: {
-    fontSize: 32,
-    fontFamily: 'Poppins-Bold',
-    color: '#4F46E5',
-    textAlign: 'center',
-    letterSpacing: 8,
-  },
-  codeInstructions: {
-    fontSize: 16,
-    fontFamily: 'Poppins-Regular',
-    color: '#64748b',
-    textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 24,
-  },
-  codeActions: {
-    flexDirection: 'row',
-    width: '100%',
-  },
-  codeActionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginHorizontal: 8,
-  },
-  codeActionText: {
-    color: 'white',
-    fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
-    marginLeft: 8,
-  },
-  requestsBadge: {
-    backgroundColor: '#F59E0B',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    minWidth: 24,
-    alignItems: 'center',
-  },
-  requestsCount: {
-    color: 'white',
-    fontSize: 12,
-    fontFamily: 'Poppins-Bold',
-  },
-  requestsList: {
-    flex: 1,
-    padding: 20,
+  sectionMeta: {
+    fontSize: 13,
   },
   requestCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 12,
+    borderWidth: 1,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  requestInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
   },
   requestAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#6B7280',
-    justifyContent: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#6366F1',
     alignItems: 'center',
-    marginRight: 12,
+    justifyContent: 'center',
+    marginRight: 14,
   },
-  requestInitial: {
-    color: 'white',
+  requestAvatarText: {
+    color: '#FFFFFF',
     fontSize: 18,
-    fontFamily: 'Poppins-Bold',
+    fontWeight: '700',
   },
-  requestDetails: {
+  requestInfo: {
     flex: 1,
   },
   requestName: {
     fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#1e293b',
+    fontWeight: '600',
     marginBottom: 2,
   },
   requestEmail: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-    color: '#64748b',
+    fontSize: 13,
     marginBottom: 2,
   },
-  requestTime: {
+  requestDate: {
     fontSize: 12,
-    fontFamily: 'Poppins-Regular',
-    color: '#9CA3AF',
   },
   requestActions: {
     flexDirection: 'row',
+    gap: 8,
   },
-  requestActionButton: {
+  requestButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 8,
+    justifyContent: 'center',
   },
-  approveButton: {
+  requestButtonApprove: {
     backgroundColor: '#10B981',
   },
-  rejectButton: {
+  requestButtonReject: {
     backgroundColor: '#EF4444',
   },
-  emptyRequests: {
+  studentCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 60,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
   },
-  emptyRequestsTitle: {
+  studentAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#4F46E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  studentAvatarText: {
+    color: '#FFFFFF',
     fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#64748b',
-    marginTop: 16,
-    marginBottom: 8,
+    fontWeight: '700',
   },
-  emptyRequestsText: {
+  studentInfo: {
+    flex: 1,
+  },
+  studentName: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  studentEmail: {
+    fontSize: 13,
+  },
+  removeButton: {
+    padding: 6,
+  },
+  emptyCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    gap: 8,
+  },
+  emptyText: {
     fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-    color: '#9CA3AF',
     textAlign: 'center',
   },
-  postModalContent: {
+  quizCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  quizTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  quizMeta: {
+    fontSize: 13,
+  },
+  postCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+  },
+  postHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  postAuthor: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  postDate: {
+    fontSize: 12,
+  },
+  postBody: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  addLink: {
+    color: '#4F46E5',
+    fontWeight: '600',
+  },
+  modalBackdrop: {
     flex: 1,
-    padding: 20,
+    backgroundColor: 'rgba(15,23,42,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 24,
+    gap: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
   },
   postInput: {
-    flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    fontFamily: 'Poppins-Regular',
-    textAlignVertical: 'top',
+    minHeight: 120,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderRadius: 16,
+    padding: 16,
+    fontSize: 15,
+    textAlignVertical: 'top',
   },
-  characterCount: {
-    textAlign: 'right',
-    marginTop: 8,
-    fontSize: 12,
-    fontFamily: 'Poppins-Regular',
-    color: '#9CA3AF',
+  submitButton: {
+    backgroundColor: '#4F46E5',
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
   },
-  postSubmitText: {
+  submitButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#4F46E5',
+    fontWeight: '600',
   },
-  postSubmitTextDisabled: {
-    color: '#9CA3AF',
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+  },
+  errorText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  retryButton: {
+    backgroundColor: '#4F46E5',
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });
+
+
+
+
+

@@ -16,7 +16,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { adminAPI } from '../../services/api';
 import Toast from '../../components/Toast';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../hooks/useTheme';
+import * as Haptics from 'expo-haptics';
 
 export default function AdminSettingsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
@@ -39,6 +41,7 @@ export default function AdminSettingsScreen({ navigation }) {
   });
   
   const [packages, setPackages] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [showPackageModal, setShowPackageModal] = useState(false);
   const [editingPackage, setEditingPackage] = useState(null);
   const [packageForm, setPackageForm] = useState({
@@ -52,6 +55,7 @@ export default function AdminSettingsScreen({ navigation }) {
     popular: false,
     active: true
   });
+  const [newFeature, setNewFeature] = useState('');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-20)).current;
@@ -87,36 +91,95 @@ export default function AdminSettingsScreen({ navigation }) {
     }
   };
 
-  const loadPackages = async () => {
+  const LOCAL_PACKAGES_KEY = '@admin_packages';
+
+  const readLocalPackages = async () => {
     try {
-      const response = await adminAPI.getPackages();
-      setPackages(response.data.data);
-    } catch (error) {
-      Toast.show('Failed to load packages', 'error');
+      const raw = await AsyncStorage.getItem(LOCAL_PACKAGES_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
     }
   };
 
+  const writeLocalPackages = async (pkgs) => {
+    try { await AsyncStorage.setItem(LOCAL_PACKAGES_KEY, JSON.stringify(pkgs)); } catch {}
+  };
+
+  const loadPackages = async () => {
+    try {
+      const response = await adminAPI.getPackages();
+      const list = response.data?.data || [];
+      setPackages(list);
+      // Mirror to local cache for offline usage
+      writeLocalPackages(list).catch(()=>{});
+    } catch (error) {
+      // Fallback to local cache or seed defaults
+      let local = await readLocalPackages();
+      if (!Array.isArray(local) || local.length === 0) {
+        local = [
+          { id: 'local-student-basic', name: 'Student Basic', role: 'student', price: { monthly: 50, yearly: 500 }, features: ['Basic usage'], color: '#4F46E5', popular: false, active: true },
+          { id: 'local-student-premium', name: 'Student Premium', role: 'student', price: { monthly: 199, yearly: 1999 }, features: ['Unlimited quizzes', 'Priority support'], color: '#7C3AED', popular: true, active: true },
+          { id: 'local-teacher', name: 'Teacher', role: 'teacher', price: { monthly: 299, yearly: 2999 }, features: ['Class management', 'Reporting'], color: '#10B981', popular: false, active: true },
+        ];
+        writeLocalPackages(local).catch(()=>{});
+      }
+      setPackages(local);
+    }
+  };
+
+  const validateSettings = () => {
+    const plans = Object.entries(settings.apiLimits);
+    for (const [plan, limits] of plans) {
+      for (const key of ['quizzes','questions']) {
+        const val = limits[key];
+        if (typeof val !== 'number' || (!Number.isInteger(val))) return `Invalid ${key} for ${plan}`;
+        if (val < -1) return `${key} for ${plan} cannot be below -1`;
+      }
+    }
+    return null;
+  };
+
   const saveSettings = async () => {
+    const err = validateSettings();
+    if (err) { 
+      Toast.show(err, 'error');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(()=>{});
+      return; 
+    }
     setSaving(true);
     try {
       await adminAPI.updateSettings(settings);
       Toast.show('Settings saved successfully!', 'success');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(()=>{});
     } catch (error) {
       Toast.show('Failed to save settings', 'error');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(()=>{});
     } finally {
       setSaving(false);
     }
   };
 
   const updateApiLimit = (plan, type, value) => {
-    const numValue = value === '' ? 0 : parseInt(value) || 0;
+    const raw = String(value ?? '').trim();
+    let num = NaN;
+    if (/^(-?\d+)$/.test(raw)) num = parseInt(raw, 10);
+    else if (/^unlimited$/i.test(raw)) num = -1;
+
+    setFieldErrors(prev => ({
+      ...prev,
+      [`${plan}.${type}`]: Number.isInteger(num) && num >= -1 ? null : 'Enter an integer or "Unlimited"'
+    }));
+
+    if (!Number.isInteger(num)) num = 0;
+
     setSettings(prev => ({
       ...prev,
       apiLimits: {
         ...prev.apiLimits,
         [plan]: {
           ...prev.apiLimits[plan],
-          [type]: numValue === 0 ? -1 : numValue
+          [type]: num
         }
       }
     }));
@@ -134,8 +197,9 @@ export default function AdminSettingsScreen({ navigation }) {
 
   const openPackageModal = (pkg = null) => {
     if (pkg) {
-      setPackageForm({ ...pkg });
-      setEditingPackage(pkg);
+      const pkgId = pkg.id || pkg._id || '';
+      setPackageForm({ id: pkgId, name: pkg.name || '', namebn: pkg.namebn || '', role: pkg.role || 'student', price: { monthly: pkg.price?.monthly ?? 0, yearly: pkg.price?.yearly ?? 0 }, features: Array.isArray(pkg.features) ? pkg.features : [], color: pkg.color || '#4F46E5', popular: !!pkg.popular, active: pkg.active !== false });
+      setEditingPackage({ id: pkgId });
     } else {
       setPackageForm({
         id: '',
@@ -150,16 +214,39 @@ export default function AdminSettingsScreen({ navigation }) {
       });
       setEditingPackage(null);
     }
+    setNewFeature('');
     setShowPackageModal(true);
   };
 
   const savePackage = async () => {
     try {
-      if (editingPackage) {
-        await adminAPI.updatePackage(editingPackage.id, packageForm);
+      const payload = { ...packageForm };
+      payload.features = Array.isArray(payload.features) ? payload.features.map(f => String(f)) : [];
+      if (editingPackage && (editingPackage.id || packageForm.id)) {
+        const pid = editingPackage.id || packageForm.id;
+        try {
+          await adminAPI.updatePackage(pid, payload);
+        } catch {
+          // Offline/local fallback update
+          const pkgs = await readLocalPackages();
+          const idx = pkgs.findIndex(p => (p.id || p._id) === pid);
+          if (idx >= 0) {
+            pkgs[idx] = { ...pkgs[idx], ...payload, id: pid };
+          }
+          await writeLocalPackages(pkgs);
+        }
         Toast.show('Package updated successfully!', 'success');
       } else {
-        await adminAPI.createPackage(packageForm);
+        const { id, ...createPayload } = payload;
+        try {
+          await adminAPI.createPackage(createPayload);
+        } catch {
+          // Offline/local fallback create
+          const pkgs = await readLocalPackages();
+          const newPkg = { ...createPayload, id: 'local-' + Date.now() };
+          pkgs.push(newPkg);
+          await writeLocalPackages(pkgs);
+        }
         Toast.show('Package created successfully!', 'success');
       }
       setShowPackageModal(false);
@@ -181,11 +268,14 @@ export default function AdminSettingsScreen({ navigation }) {
           onPress: async () => {
             try {
               await adminAPI.deletePackage(packageId);
-              Toast.show('Package deleted successfully!', 'success');
-              loadPackages();
-            } catch (error) {
-              Toast.show('Failed to delete package', 'error');
+            } catch {
+              // Local fallback
+              const pkgs = await readLocalPackages();
+              const filtered = pkgs.filter(p => (p.id || p._id) !== packageId);
+              await writeLocalPackages(filtered);
             }
+            Toast.show('Package deleted successfully!', 'success');
+            loadPackages();
           }
         }
       ]
@@ -193,13 +283,10 @@ export default function AdminSettingsScreen({ navigation }) {
   };
 
   const addFeatureToPackage = () => {
-    const newFeature = prompt('Enter feature description:');
-    if (newFeature) {
-      setPackageForm(prev => ({
-        ...prev,
-        features: [...prev.features, newFeature]
-      }));
-    }
+    const val = (newFeature || '').trim();
+    if (!val) return;
+    setPackageForm(prev => ({ ...prev, features: [...(prev.features || []), val] }));
+    setNewFeature('');
   };
 
   const removeFeatureFromPackage = (index) => {
@@ -275,26 +362,32 @@ export default function AdminSettingsScreen({ navigation }) {
               
               <View style={styles.limitRow}>
                 <Text style={[styles.limitLabel, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>Monthly Quizzes:</Text>
-                <TextInput
-                  style={[styles.limitInput, { backgroundColor: theme === 'light' ? 'white' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' }]}
-                  value={limits.quizzes === -1 ? 'Unlimited' : String(limits.quizzes)}
-                  onChangeText={(value) => updateApiLimit(plan, 'quizzes', value)}
-                  placeholder="0 or Unlimited"
-                  placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
-                  keyboardType="numeric"
-                />
+                <View style={{ flex: 1 }}>
+                  <TextInput
+                    style={[styles.limitInput, { backgroundColor: theme === 'light' ? 'white' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: fieldErrors[`${plan}.quizzes`] ? '#EF4444' : (theme === 'light' ? '#e2e8f0' : '#374151') }]}
+                    value={limits.quizzes === -1 ? 'Unlimited' : String(limits.quizzes)}
+                    onChangeText={(value) => updateApiLimit(plan, 'quizzes', value)}
+                    placeholder="number or Unlimited"
+                    placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
+                    keyboardType="default"
+                  />
+                  {!!fieldErrors[`${plan}.quizzes`] && (<Text style={styles.errorHint}>{fieldErrors[`${plan}.quizzes`]}</Text>)}
+                </View>
               </View>
               
               <View style={styles.limitRow}>
                 <Text style={[styles.limitLabel, { color: theme === 'light' ? '#64748b' : '#9CA3AF' }]}>Monthly Questions:</Text>
-                <TextInput
-                  style={[styles.limitInput, { backgroundColor: theme === 'light' ? 'white' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' }]}
-                  value={limits.questions === -1 ? 'Unlimited' : String(limits.questions)}
-                  onChangeText={(value) => updateApiLimit(plan, 'questions', value)}
-                  placeholder="0 or Unlimited"
-                  placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
-                  keyboardType="numeric"
-                />
+                <View style={{ flex: 1 }}>
+                  <TextInput
+                    style={[styles.limitInput, { backgroundColor: theme === 'light' ? 'white' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: fieldErrors[`${plan}.questions`] ? '#EF4444' : (theme === 'light' ? '#e2e8f0' : '#374151') }]}
+                    value={limits.questions === -1 ? 'Unlimited' : String(limits.questions)}
+                    onChangeText={(value) => updateApiLimit(plan, 'questions', value)}
+                    placeholder="number or Unlimited"
+                    placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
+                    keyboardType="default"
+                  />
+                  {!!fieldErrors[`${plan}.questions`] && (<Text style={styles.errorHint}>{fieldErrors[`${plan}.questions`]}</Text>)}
+                </View>
               </View>
             </View>
           ))}
@@ -332,6 +425,23 @@ export default function AdminSettingsScreen({ navigation }) {
           ))}
         </Animated.View>
 
+        {/* Live Preview */}
+        <Animated.View
+          style={[styles.section, { transform: [{ translateY: slideAnim }], opacity: fadeAnim }]}
+        >
+          <View style={styles.sectionHeader}>
+            <Ionicons name="eye-outline" size={24} color="#4F46E5" />
+            <Text style={[styles.sectionTitle, { color: theme === 'light' ? '#1e293b' : 'white' }]}>Live Preview</Text>
+          </View>
+          <View style={[styles.limitCard, { backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
+            {Object.entries(settings.apiLimits).map(([plan, limits]) => (
+              <Text key={plan} style={{ marginBottom: 6, color: theme === 'light' ? '#1e293b' : 'white' }}>
+                {plan.replace('_',' ').toUpperCase()}: {limits.quizzes === -1 ? 'Unlimited' : limits.quizzes} quizzes / {limits.questions === -1 ? 'Unlimited' : limits.questions} questions per month
+              </Text>
+            ))}
+          </View>
+        </Animated.View>
+
         {/* Package Management Section */}
         <Animated.View 
           style={[
@@ -351,7 +461,7 @@ export default function AdminSettingsScreen({ navigation }) {
           </View>
           
           {packages.map((pkg, index) => (
-            <View key={pkg.id} style={[styles.packageCard, { borderLeftColor: pkg.color, backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
+            <View key={pkg.id || pkg._id || index} style={[styles.packageCard, { borderLeftColor: pkg.color, backgroundColor: theme === 'light' ? 'white' : '#1e1e1e' }]}>
               <View style={styles.packageHeader}>
                 <View>
                   <Text style={[styles.packageName, { color: theme === 'light' ? '#1e293b' : 'white' }]}>{pkg.name}</Text>
@@ -371,7 +481,7 @@ export default function AdminSettingsScreen({ navigation }) {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.deleteButton}
-                    onPress={() => deletePackage(pkg.id)}
+                    onPress={() => deletePackage(pkg.id || pkg._id)}
                   >
                     <Ionicons name="trash" size={16} color="#EF4444" />
                   </TouchableOpacity>
@@ -486,14 +596,24 @@ export default function AdminSettingsScreen({ navigation }) {
             
             <View style={styles.formGroup}>
               <View style={styles.featuresHeader}>
-                <Text style={[styles.formLabel, { color: theme === 'light' ? '#374151' : 'white' }]}>Features</Text>
-                <TouchableOpacity
-                  style={styles.addFeatureButton}
-                  onPress={addFeatureToPackage}
-                >
-                  <Ionicons name="add" size={16} color="#4F46E5" />
-                  <Text style={styles.addFeatureText}>Add Feature</Text>
-                </TouchableOpacity>
+                  <Text style={[styles.formLabel, { color: theme === 'light' ? '#374151' : 'white' }]}>Features</Text>
+                <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
+                  <TextInput
+                    style={[styles.formInput, { width: 200, backgroundColor: theme === 'light' ? 'white' : '#272727', color: theme === 'light' ? '#111827' : 'white', borderColor: theme === 'light' ? '#e2e8f0' : '#374151' }]}
+                    placeholder="Add a feature"
+                    placeholderTextColor={theme === 'light' ? '#9CA3AF' : '#6B7280'}
+                    value={newFeature}
+                    onChangeText={setNewFeature}
+                    onSubmitEditing={addFeatureToPackage}
+                  />
+                  <TouchableOpacity
+                    style={styles.addFeatureButton}
+                    onPress={addFeatureToPackage}
+                  >
+                    <Ionicons name="add" size={16} color="#4F46E5" />
+                    <Text style={styles.addFeatureText}>Add</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
               
               {packageForm.features.map((feature, index) => (
@@ -681,6 +801,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Poppins-Regular',
     color: '#64748b',
+  },
+  errorHint: {
+    color: '#EF4444',
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'right'
   },
   packageCard: {
     backgroundColor: 'white',

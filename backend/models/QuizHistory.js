@@ -76,17 +76,25 @@ quizHistorySchema.index({ score: -1 });
 
 // Static method to get user statistics
 quizHistorySchema.statics.getUserStats = async function(userId) {
+  if (!userId) return {
+    totalQuizzes: 0,
+    averageScore: 0,
+    totalTimeTaken: 0,
+    passedQuizzes: 0,
+    totalPoints: 0
+  };
+
+  const userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
+
   const stats = await this.aggregate([
-    { $match: { user: mongoose.Types.ObjectId(userId) } },
+    { $match: { user: userObjectId } },
     {
       $group: {
         _id: null,
         totalQuizzes: { $sum: 1 },
         averageScore: { $avg: '$percentage' },
         totalTimeTaken: { $sum: '$timeTaken' },
-        passedQuizzes: {
-          $sum: { $cond: ['$passed', 1, 0] }
-        },
+        passedQuizzes: { $sum: { $cond: ['$passed', 1, 0] } },
         totalPoints: { $sum: '$score' }
       }
     }

@@ -108,7 +108,6 @@ async function generateUniqueClassCode(ClassModel, maxAttempts = 10) {
 
 // Indexes
 classSchema.index({ teacher: 1 });
-classSchema.index({ code: 1 });
 classSchema.index({ students: 1 });
 
 module.exports = mongoose.model('Class', classSchema);

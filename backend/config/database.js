@@ -1,9 +1,21 @@
 const mongoose = require('mongoose');
-require('dotenv').config({ path: './backend/.env' });
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Ensure environment variables are available when this module is required directly
+dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
+dotenv.config({ path: path.join(__dirname, '..', '.env'), override: true });
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI);
+    const uri = process.env.MONGODB_URI;
+    if (!uri) {
+      throw new Error('MONGODB_URI is not set. Please add it to your .env');
+    }
+
+    const conn = await mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 10000,
+    });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
 
