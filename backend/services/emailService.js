@@ -162,7 +162,7 @@ const build3DTemplate = ({
                 overflow:hidden;">
 
       <div style="text-align:center; margin-bottom: 30px; animation:fadeIn 0.6s ease-out forwards;">
-        <img src="https://i.ibb.co.com/pvB2jWn9/Gemini-Generated-Image-sepeaasepeaasepe.png" alt="QuizCraft Universe" style="max-width:100%; height:auto; border-radius:18px; box-shadow:0 15px 40px rgba(0,0,0,0.35);">
+        <img src="https://i.ibb.co.com/Xx9wjnXy/Gemini-Generated-Image-sepeaasepeaasepe.png" alt="QuizCraft Universe" style="max-width:100%; height:auto; border-radius:18px; box-shadow:0 15px 40px rgba(0,0,0,0.35);">
       </div>
       
       <div style="position:relative;z-index:2;text-align:center;animation:fadeIn 0.6s ease-out forwards;">

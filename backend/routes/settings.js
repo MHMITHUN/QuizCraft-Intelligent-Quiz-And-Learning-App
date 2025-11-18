@@ -1,15 +1,12 @@
 const express = require('express');
 const router = express.Router();
 
-// In a real system, these settings can be stored/updated in DB
-// Here we read from DB if present, otherwise serve defaults
 const SystemSettings = require('../models/SystemSettings');
 
 router.get('/', async (req, res) => {
   try {
     let settings = await SystemSettings.findOne({});
     if (!settings) {
-      // Fallback defaults based on env
       settings = {
         freemium: {
           freeQuizLimit: parseInt(process.env.FREE_QUIZ_LIMIT || '10'),

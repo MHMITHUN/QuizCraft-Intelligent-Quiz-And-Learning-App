@@ -157,7 +157,6 @@ router.get('/tags', async (req, res) => {
   try {
     const quizzes = await Quiz.find({ status: 'published', isPublic: true }).select('tags');
     
-    // Flatten and count tags
     const tagCounts = {};
     quizzes.forEach(quiz => {
       quiz.tags.forEach(tag => {
@@ -165,7 +164,6 @@ router.get('/tags', async (req, res) => {
       });
     });
 
-    // Sort by count and get top tags
     const popularTags = Object.entries(tagCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 20)
